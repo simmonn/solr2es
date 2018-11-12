@@ -3,7 +3,15 @@ jobs:
   build:
     docker:
       - image: circleci/python:3.5
-      
+      - image: docker.elastic.co/elasticsearch/elasticsearch:6.3.0
+        environment:
+          - "discovery.type=single-node"
+          - "cluster.name=solr2es"
+          - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+        name: elasticsearch
+      - image: solr:7.5
+        name: solr
+
     working_directory: ~/repo
 
     steps:
