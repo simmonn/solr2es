@@ -32,4 +32,13 @@ class TestMigration(unittest.TestCase):
     def test_migrate_one_doc(self):
         TestMigration.solr.add([{"id": "doc_1", "title": "A test document"}])
         self.assertEqual(1, self.solr2es.migrate('foo'))
-        self.assertIsNotNone(TestMigration.es.get(index="foo", doc_type=Solr2Es.DEFAULT_ES_DOC_TYPE, id="doc_1"))
+        doc = TestMigration.es.get_source(index="foo", doc_type=Solr2Es.DEFAULT_ES_DOC_TYPE, id="doc_1")
+        self.assertEqual(doc['id'], "doc_1")
+        self.assertEqual(doc['title'], "A test document")
+
+    def test_migrate_n_docs(self):
+        TestMigration.solr.add([
+            {"id": "id_1", "title": "A first document"},
+            {"id": "id_2", "title": "A second document"}
+        ])
+        self.assertEqual(2, self.solr2es.migrate('foo'))
