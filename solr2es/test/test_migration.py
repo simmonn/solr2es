@@ -36,9 +36,16 @@ class TestMigration(unittest.TestCase):
         self.assertEqual(doc['id'], "doc_1")
         self.assertEqual(doc['title'], "A test document")
 
-    def test_migrate_n_docs(self):
+    def test_migrate_two_docs(self):
         TestMigration.solr.add([
             {"id": "id_1", "title": "A first document"},
             {"id": "id_2", "title": "A second document"}
         ])
         self.assertEqual(2, self.solr2es.migrate('foo'))
+
+    def test_migrate_twenty_docs(self):
+        docs = list()
+        for i in range(0, 11):
+            docs.append({"id": "id_%d" % i, "title": "A %d document" % i})
+        TestMigration.solr.add(docs)
+        self.assertEqual(11, self.solr2es.migrate('foo'))
