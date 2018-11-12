@@ -29,6 +29,10 @@ jobs:
             . venv/bin/activate
             python setup.py develop 
 
+      - run:
+          name: create solr core
+          command: curl "http://solr:8983/action=CREATE&name=my_core&instanceDir=/opt/solr/server/solr/configsets/_default/conf/"
+
       - save_cache:
           paths:
             - ./venv
