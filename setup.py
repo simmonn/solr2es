@@ -13,6 +13,10 @@ with open(os.path.join(here, 'README.rst')) as readme:
 
 NAME = 'solr2es'
 
+install_requires = [
+    'pysolr==3.8.1',
+    'elasticsearch==6.3.1'
+]
 tests_require = [
     'nose',
     'pytz',
@@ -37,6 +41,6 @@ setup(
     include_package_data=True,
     zip_safe=False,
     test_suite="nose.collector",  
-    install_requires=[],
+    install_requires=install_requires,
     tests_require=tests_require,
 )
