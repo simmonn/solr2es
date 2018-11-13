@@ -1,8 +1,6 @@
 import itertools
 from json import loads, dumps
 
-from elasticsearch.helpers import bulk
-
 DEFAULT_ES_DOC_TYPE = 'doc'
 
 
@@ -19,18 +17,20 @@ class Solr2Es(object):
         kwargs = dict(cursorMark='*', sort='id asc')
         while not cursor_ended:
             results = self.solr.search('*:*', **kwargs)
-            actions = create_es_actions(index_name, results)
-            errors = bulk(self.es, actions, False, None, refresh=self.refresh)
-            nb_results += len(actions)
-            if kwargs['cursorMark'] == results.nextCursorMark:
+            if kwargs['cursorMark'] != results.nextCursorMark:
+                actions = create_es_actions(index_name, results)
+                errors = self.es.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
+                nb_results += len(results)
+                kwargs['cursorMark'] = results.nextCursorMark
+            else:
                 cursor_ended = True
-            kwargs['cursorMark'] = results.nextCursorMark
         return nb_results
 
 
 class Solr2EsAsync(object):
-    def __init__(self, aiohttp_session, aes, refresh=False) -> None:
+    def __init__(self, aiohttp_session, aes, solr_url, refresh=False) -> None:
         super().__init__()
+        self.solr_url = solr_url
         self.aiohttp_session = aiohttp_session
         self.aes = aes
         self.refresh = refresh
@@ -40,10 +40,10 @@ class Solr2EsAsync(object):
         nb_results = 0
         kwargs = dict(cursorMark='*', sort='id asc', q='*:*', wt='json')
         while not cursor_ended:
-            async with self.aiohttp_session.get('http://solr:8983/solr/my_core/select/', params=kwargs) as resp:
+            async with self.aiohttp_session.get(self.solr_url + '/select/', params=kwargs) as resp:
                 json = loads(await resp.text())
                 if kwargs['cursorMark'] != json['nextCursorMark']:
-                    actions = create_es_actions_async(index_name, json['response']['docs'])
+                    actions = create_es_actions(index_name, json['response']['docs'])
                     await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
                     nb_results += len(json['response']['docs'])
                     kwargs['cursorMark'] = json['nextCursorMark']
@@ -53,15 +53,9 @@ class Solr2EsAsync(object):
 
 
 def create_es_actions(index_name, solr_results):
-    return [{'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_op_type': 'index',
-             '_id': row['id'], '_source': remove_arrays(row)} for row in solr_results]
-
-
-def create_es_actions_async(index_name, solr_results):
-    results_ = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row['id']}}, remove_arrays(row)) for row
-                in solr_results]
-    l = list(map(lambda d: dumps(d), itertools.chain(*results_)))
-    return '\n'.join(l)
+    results_ = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row['id']}}, remove_arrays(row))
+                for row in solr_results]
+    return '\n'.join(list(map(lambda d: dumps(d), itertools.chain(*results_))))
 
 
 def remove_arrays(row):
