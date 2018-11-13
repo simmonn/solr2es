@@ -1,4 +1,3 @@
-import time
 import unittest
 
 from elasticsearch import Elasticsearch
@@ -46,12 +45,6 @@ class TestMigration(unittest.TestCase):
         ])
         self.assertEqual(2, self.solr2es.migrate('foo'))
 
-    def test_migrate_thousand_docs(self):
-        start = time.time()
-        TestMigration.solr.add([{"id": "id_%d" % i, "title": "A %d document" % i} for i in range(0, 1000)])
-        middle = time.time()
-        print('inserted in {:.3f} ms'.format((middle - start)*1000))
-
-        self.assertEqual(1000, self.solr2es.migrate('foo'))
-        end = time.time()
-        print('migrated in {:.3f} ms'.format((end - middle)*1000))
+    def test_migrate_twelve_docs(self):
+        TestMigration.solr.add([{"id": "id_%d" % i, "title": "A %d document" % i} for i in range(0, 12)])
+        self.assertEqual(12, self.solr2es.migrate('foo'))
