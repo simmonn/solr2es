@@ -1,3 +1,6 @@
+from elasticsearch.helpers import bulk
+
+
 class Solr2Es(object):
     DEFAULT_ES_DOC_TYPE = 'doc'
 
@@ -13,13 +16,18 @@ class Solr2Es(object):
         kwargs = dict(cursorMark='*', sort='id asc')
         while not cursor_ended:
             results = self.solr.search('*:*', **kwargs)
-            for row in results:
-                self.es.create(index=index_name, doc_type=Solr2Es.DEFAULT_ES_DOC_TYPE, id=row['id'], body=self.remove_arrays(row), refresh=self.refresh)
-                nb_results += 1
+            actions = self.create_es_actions(index_name, results)
+            errors = bulk(self.es, actions, False, *[], refresh=self.refresh)
+            nb_results += len(actions)
             if kwargs['cursorMark'] == results.nextCursorMark:
                 cursor_ended = True
             kwargs['cursorMark'] = results.nextCursorMark
         return nb_results
+
+    @staticmethod
+    def create_es_actions(index_name, solr_results):
+        return [{'_index': index_name, '_type': Solr2Es.DEFAULT_ES_DOC_TYPE, '_op_type': 'index',
+                 '_id': row['id'], '_source': Solr2Es.remove_arrays(row)} for row in solr_results]
 
     @staticmethod
     def remove_arrays(row):
