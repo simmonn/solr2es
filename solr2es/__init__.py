@@ -69,6 +69,15 @@ class RedisConsumer(object):
             self.redis.lpush('solr2es:queue', *map(dumps, results))
 
 
+class RedisConsumerAsync(object):
+    def __init__(self, redis) -> None:
+        self.redis = redis
+
+    async def consume(self, producer):
+        async for results in producer():
+            await self.redis.lpush('solr2es:queue', list(map(dumps, results)))
+
+
 def create_es_actions(index_name, solr_results):
     results_ = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row['id']}}, remove_arrays(row))
                 for row in solr_results]
