@@ -2,9 +2,8 @@ from json import loads
 
 import asyncio_redis
 import asynctest
-import redis as redis
 
-from solr2es import RedisConsumerAsync
+from solr2es.solr2es import RedisConsumerAsync
 
 
 class TestRedisConsumer(asynctest.TestCase):

@@ -44,6 +44,7 @@ setup(
     keywords='migration search engine solr elasticsearch',
     packages=find_packages(),
     include_package_data=True,
+    scripts=['solr2es/solr2es.py'],
     zip_safe=False,
     test_suite="nose.collector",  
     install_requires=install_requires,

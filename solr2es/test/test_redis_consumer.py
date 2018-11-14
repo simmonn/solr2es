@@ -3,7 +3,7 @@ from json import loads
 
 import redis as redis
 
-from solr2es import RedisConsumer
+from solr2es.solr2es import RedisConsumer
 
 
 class TestRedisConsumer(unittest.TestCase):

@@ -3,7 +3,7 @@ import unittest
 from elasticsearch import Elasticsearch
 from pysolr import Solr
 
-from solr2es import Solr2Es, DEFAULT_ES_DOC_TYPE
+from solr2es.solr2es import Solr2Es, DEFAULT_ES_DOC_TYPE
 
 
 class TestMigration(unittest.TestCase):
