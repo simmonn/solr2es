@@ -10,6 +10,8 @@ if py_version < (3, 6):
 
 with open(os.path.join(here, 'README.rst')) as readme:
     README = readme.read()
+with open(os.path.join(here, 'CHANGES.rst')) as changes:
+    CHANGES = changes.read()
 
 NAME = 'solr2es'
 
@@ -29,9 +31,9 @@ tests_require = [
 ]
 setup(
     name=NAME,
-    version='0.1',
+    version='0.2',
     description='Python solr/elasticsearch migration script',
-    long_description=README,
+    long_description=README + '\n\n' + CHANGES,
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.6",
