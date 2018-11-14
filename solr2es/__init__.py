@@ -13,13 +13,13 @@ class Solr2Es(object):
 
     def migrate(self, index_name) -> int:
         nb_results = 0
-        for results in self.fetch_all():
+        for results in self.produce_results():
             actions = create_es_actions(index_name, results)
             errors = self.es.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
         return nb_results
 
-    def fetch_all(self):
+    def produce_results(self):
         cursor_ended = False
         kwargs = dict(cursorMark='*', sort='id asc')
         while not cursor_ended:
@@ -41,13 +41,13 @@ class Solr2EsAsync(object):
 
     async def migrate(self, index_name) -> int:
         nb_results = 0
-        async for results in self.fetch_all():
+        async for results in self.produce_results():
             actions = create_es_actions(index_name, results)
             await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
         return nb_results
 
-    async def fetch_all(self):
+    async def produce_results(self):
         cursor_ended = False
         kwargs = dict(cursorMark='*', sort='id asc', q='*:*', wt='json')
         while not cursor_ended:
