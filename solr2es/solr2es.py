@@ -2,6 +2,7 @@
 import asyncio
 import getopt
 import itertools
+import logging
 import sys
 from json import loads, dumps
 
@@ -11,6 +12,10 @@ import redis
 from elasticsearch import Elasticsearch
 from elasticsearch_async import AsyncElasticsearch
 from pysolr import Solr
+
+logging.basicConfig(format='%(asctime)s [%(name)s] %(levelname)s: %(message)s')
+LOGGER = logging.getLogger('solr2es')
+LOGGER.setLevel(logging.INFO)
 
 DEFAULT_ES_DOC_TYPE = 'doc'
 
@@ -105,28 +110,32 @@ def remove_arrays(row):
 
 
 def dump_into_redis(solrurl, redishost):
+    LOGGER.info('dump from solr (%s) into redis (host=%s)', solrurl, redishost)
     RedisConsumer(redis.Redis(host=redishost)).consume(Solr2Es(Solr(solrurl, always_commit=True), None).produce_results)
 
 
 def resume_from_redis(redishost, esurl, name):
-    pass
+    LOGGER.info('resume from redis (host=%s) to elasticsearch (%s) index %s', redishost, esurl, name)
 
 
 def migrate(solrurl, esurl, name):
+    LOGGER.info('migrate from solr (%s) into elasticsearch (%s) index %s', solrurl, esurl, name)
     Solr2Es(Solr(solrurl, always_commit=True), Elasticsearch(host=esurl)).migrate(name)
 
 
 async def aiodump_into_redis(solrurl, redishost):
+    LOGGER.info('asyncio dump from solr (%s) into redis (host=%s)', solrurl, redishost)
     async with aiohttp.ClientSession() as session:
         await RedisConsumerAsync(await asyncio_redis.Pool.create(host=redishost, port=6379, poolsize=10)).\
             consume(Solr2EsAsync(session, None, solrurl).produce_results)
 
 
 async def aioresume_from_redis(redishost, esurl, name):
-    pass
+    LOGGER.info('asyncio resume from redis (host=%s) to elasticsearch (%s) index %s', redishost, esurl, name)
 
 
 async def aiomigrate(solrurl, esurl, name):
+    LOGGER.info('asyncio migrate from solr (%s) into elasticsearch (%s) index %s', solrurl, esurl, name)
     async with aiohttp.ClientSession() as session:
         await Solr2EsAsync(session, AsyncElasticsearch(hosts=[esurl]), solrurl).migrate(name)
 
