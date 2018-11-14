@@ -36,15 +36,24 @@ class Solr2Es(object):
         return nb_results
 
     def produce_results(self):
+        nb_results = 0
+        nb_total = 0
         cursor_ended = False
         kwargs = dict(cursorMark='*', sort='id asc')
         while not cursor_ended:
             results = self.solr.search('*:*', **kwargs)
+            if kwargs['cursorMark'] == '*':
+                nb_total = results.hits
+                LOGGER.info('found %s documents', nb_total)
             if kwargs['cursorMark'] != results.nextCursorMark:
                 kwargs['cursorMark'] = results.nextCursorMark
+                nb_results += len(results)
+                if nb_results % 10000 == 0:
+                    LOGGER.info('read %s docs of %s (%s %% done)', nb_results, nb_total, (100 * nb_results)/nb_total)
                 yield results
             else:
                 cursor_ended = True
+        LOGGER.info('processed %s documents', nb_results)
 
 
 class Solr2EsAsync(object):
@@ -65,15 +74,25 @@ class Solr2EsAsync(object):
 
     async def produce_results(self):
         cursor_ended = False
+        nb_results = 0
+        nb_total = 0
         kwargs = dict(cursorMark='*', sort='id asc', q='*:*', wt='json')
         while not cursor_ended:
             async with self.aiohttp_session.get(self.solr_url + '/select/', params=kwargs) as resp:
                 json = loads(await resp.text())
+                if kwargs['cursorMark'] == '*':
+                    nb_total = int(json['response']['numFound'])
+                    LOGGER.info('found %s documents', json['response']['numFound'])
                 if kwargs['cursorMark'] != json['nextCursorMark']:
                     kwargs['cursorMark'] = json['nextCursorMark']
+                    nb_results += len(json['response']['docs'])
+                    if nb_results % 10000 == 0:
+                        LOGGER.info('read %s docs of %s (%s %% done)', nb_results, nb_total,
+                                    (100 * nb_results) / nb_total)
                     yield json['response']['docs']
                 else:
                     cursor_ended = True
+        LOGGER.info('processed %s documents', nb_results)
 
 
 class RedisConsumer(object):
