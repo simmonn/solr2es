@@ -35,7 +35,6 @@ setup(
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.6",
-        "Topic :: Search"
     ],
     author='Anne L\'Hôte, Bruno Thomas',
     author_email='alhote@icij.org, bthomas@icij.org',
