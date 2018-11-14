@@ -145,6 +145,10 @@ def usage(argv):
 
 if __name__ == '__main__':
     options, remainder = getopt.gnu_getopt(sys.argv[1:], 'hmdra', ['help', 'migrate', 'dump', 'resume', 'async', 'solrurl=', 'esurl=', 'redishost=', 'index='])
+    if len(sys.argv) == 1:
+        usage(sys.argv)
+        sys.exit()
+
     aioloop = asyncio.get_event_loop()
     with_asyncio = False
     solrurl = 'http://solr:8983/solr/my_core'
@@ -152,8 +156,9 @@ if __name__ == '__main__':
     redishost = 'redis'
     index_name = 'solr2es'
     action = 'migrate'
+    print('before migrate')
     for opt, arg in options:
-        if opt in ('-h', '--help') or len(sys.argv) == 1:
+        if opt in ('-h', '--help'):
             usage(sys.argv)
             sys.exit()
 
