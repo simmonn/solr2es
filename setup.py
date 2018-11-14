@@ -5,8 +5,8 @@ from setuptools import setup, find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
 py_version = sys.version_info[:2]
-if py_version < (3, 4):
-    raise Exception("solr2es requires Python >= 3.4.")
+if py_version < (3, 6):
+    raise Exception("solr2es requires Python >= 3.6.")
 
 with open(os.path.join(here, 'README.rst')) as readme:
     README = readme.read()
@@ -31,9 +31,8 @@ setup(
     long_description=README,
     classifiers=[
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5",
-        "Topic :: Internet" 
+        "Programming Language :: Python :: 3.6",
+        "Topic :: Search"
     ],
     author='Anne L\'Hôte, Bruno Thomas',
     author_email='alhote@icij.org, bthomas@icij.org',
