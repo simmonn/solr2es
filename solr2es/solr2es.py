@@ -152,7 +152,6 @@ if __name__ == '__main__':
     redishost = 'redis'
     index_name = 'solr2es'
     action = 'migrate'
-    print(sys.argv)
     for opt, arg in options:
         if opt in ('-h', '--help') or len(sys.argv) == 1:
             usage(sys.argv)
