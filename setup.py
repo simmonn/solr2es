@@ -17,8 +17,10 @@ install_requires = [
     'pysolr==3.8.1',
     'elasticsearch==6.3.1',
     'aiohttp==2.3.10',
-    'elasticsearch-async==6.2.0'
+    'elasticsearch-async==6.2.0',
+    'redis==2.10.6',
 ]
+
 tests_require = [
     'nose',
     'asynctest',

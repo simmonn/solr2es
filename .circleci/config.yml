@@ -11,6 +11,8 @@ jobs:
         name: elasticsearch
       - image: solr:7.5
         name: solr
+      - image: redis:4.0.1-alpine
+        name: redis
 
     working_directory: ~/repo
 
