@@ -65,7 +65,3 @@ def remove_arrays(row):
         else:
             return value
     return {k: filter(v) for k, v in row.items()}
-
-
-class IndexNotFoundException(RuntimeError):
-    pass
