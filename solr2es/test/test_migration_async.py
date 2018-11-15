@@ -9,7 +9,7 @@ from solr2es.solr2es import DEFAULT_ES_DOC_TYPE, Solr2EsAsync
 class TestMigrationAsync(asynctest.TestCase):
     async def setUp(self):
         self.aes = AsyncElasticsearch(hosts=['elasticsearch'])
-        self.solr_url = 'http://solr:8983/solr/my_core'
+        self.solr_url = 'http://solr:8983/solr/test_core'
 
     async def tearDown(self):
         async with aiohttp.ClientSession() as session:
