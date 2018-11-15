@@ -12,7 +12,7 @@ class TestMigration(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.solr = Solr('http://solr:8983/solr/my_core', always_commit=True)
+        cls.solr = Solr('http://solr:8983/solr/test_core', always_commit=True)
         cls.es = Elasticsearch(host='elasticsearch')
 
     @classmethod

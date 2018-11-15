@@ -33,7 +33,7 @@ jobs:
 
       - run:
           name: create solr core
-          command: curl "http://solr:8983/solr/admin/cores?action=CREATE&name=my_core&instanceDir=/opt/solr/server/solr/configsets/_default/conf/"
+          command: curl "http://solr:8983/solr/admin/cores?action=CREATE&name=test_core&instanceDir=/opt/solr/server/solr/configsets/_default/conf/"
 
       - save_cache:
           paths:
