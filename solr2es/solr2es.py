@@ -33,8 +33,13 @@ class Solr2Es(object):
             self.es.indices.create(index_name, body=mapping)
         for results in self.produce_results():
             actions = create_es_actions(index_name, results)
-            errors = self.es.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
+            response = self.es.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
+            if response['errors']:
+                for err in response['items']:
+                    LOGGER.warning(err)
+                nb_results -= len(response['items'])
+        LOGGER.info('processed %s documents', nb_results)
         return nb_results
 
     def produce_results(self):
@@ -55,7 +60,6 @@ class Solr2Es(object):
                 yield results
             else:
                 cursor_ended = True
-        LOGGER.info('processed %s documents', nb_results)
 
 
 class Solr2EsAsync(object):

@@ -1,5 +1,6 @@
 import unittest
 
+import requests
 from elasticsearch import Elasticsearch
 from pysolr import Solr
 
@@ -59,3 +60,18 @@ class TestMigration(unittest.TestCase):
         self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"other": {"type": "keyword"}}}}}')
 
         self.assertEqual({'foo': {'mappings': {}}}, self.es.indices.get_field_mapping(index=['foo'], fields=['other']))
+
+    def test_migrate_with_mapping_on_same_name_existing_field(self):
+        TestMigration.solr.add([{"my_field": "content"}])
+        self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"my_field": {"type": "keyword"}}}}}')
+
+        self.assertEqual(1, self.es.search('foo', 'doc', {'query': {'term': {'my_field': 'content'}}})['hits']['total'])
+
+    def test_migrate_with_mapping_on_same_existing_field_with_different_types(self):
+        requests.post('http://solr:8983/solr/test_core/schema', headers={'Content-Type': 'application/json'},
+                      data='{ "add-field":{ "name":"my_int", "type":"pint", "stored":true }}')
+        TestMigration.solr.add([{"id": '123', "my_int": 12}])
+
+        self.assertEqual(0, self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"my_int": {"type": "date", "format": "date_time"}}}}}'))
+        self.assertFalse(self.es.exists(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="123"))
+
