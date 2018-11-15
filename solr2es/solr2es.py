@@ -27,12 +27,13 @@ class Solr2Es(object):
         self.es = es
         self.refresh = refresh
 
-    def migrate(self, index_name, mapping=None) -> int:
+    def migrate(self, index_name, mapping=None, translation_map=None) -> int:
+        translation_dict = dict() if translation_map is None else translation_map
         nb_results = 0
         if not self.es.indices.exists([index_name]):
             self.es.indices.create(index_name, body=mapping)
         for results in self.produce_results():
-            actions = create_es_actions(index_name, results)
+            actions = create_es_actions(index_name, results, translation_dict)
             response = self.es.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
             if response['errors']:
@@ -119,19 +120,20 @@ class RedisConsumerAsync(object):
             await self.redis.lpush('solr2es:queue', list(map(dumps, results)))
 
 
-def create_es_actions(index_name, solr_results):
-    results_ = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row['id']}}, remove_arrays(row))
+def create_es_actions(index_name, solr_results, translation_map):
+    results_ = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row['id']}}, translate_doc(row, translation_map))
                 for row in solr_results]
     return '\n'.join(list(map(lambda d: dumps(d), itertools.chain(*results_))))
 
 
-def remove_arrays(row):
-    def filter(value):
+def translate_doc(row, translation_map):
+    def translate(key, value):
+        translated_key = translation_map.get(key, key)
         if type(value) is list:
-            return value[0]
+            return translated_key, value[0]
         else:
-            return value
-    return {k: filter(v) for k, v in row.items()}
+            return translated_key, value
+    return dict(translate(k, v) for k, v in row.items())
 
 
 def dump_into_redis(solrurl, redishost):

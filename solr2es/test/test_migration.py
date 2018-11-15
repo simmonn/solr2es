@@ -75,3 +75,12 @@ class TestMigration(unittest.TestCase):
         self.assertEqual(0, self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"my_int": {"type": "date", "format": "date_time"}}}}}'))
         self.assertFalse(self.es.exists(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="123"))
 
+    def test_migrate_different_fields_with_translation_map(self):
+        TestMigration.solr.add([{"id": "142", "my_bar": "content"}])
+
+        self.solr2es.migrate('foo',
+                             '{"mappings": {"doc": {"properties": {"my_baz": {"type": "text"}}}}}',
+                             {"my_bar": "my_baz"})
+
+        doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
+        self.assertEqual(doc['my_baz'], "content")
