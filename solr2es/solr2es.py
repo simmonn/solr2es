@@ -29,7 +29,8 @@ class Solr2Es(object):
 
     def migrate(self, index_name, mapping=None) -> int:
         nb_results = 0
-        self.es.indices.create(index_name, body=mapping)
+        if not self.es.indices.exists([index_name]):
+            self.es.indices.create(index_name, body=mapping)
         for results in self.produce_results():
             actions = create_es_actions(index_name, results)
             errors = self.es.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)

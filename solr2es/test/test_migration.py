@@ -50,17 +50,12 @@ class TestMigration(unittest.TestCase):
         self.assertEqual(12, self.solr2es.migrate('foo'))
 
     def test_migrate_with_es_mapping(self):
-        mapping = '''
-        {
-        "mappings": {
-            "doc": {
-                "properties": {
-                    "my_field": {
-                        "type": "keyword"
-                    }
-                }
-            }
-        }
-        }'''
+        mapping = '{"mappings": {"doc": {"properties": {"my_field": {"type": "keyword"}}}}}'
         self.solr2es.migrate('foo', mapping=mapping)
         self.assertEqual({'my_field': {'type': 'keyword'}}, self.es.indices.get_field_mapping(index=['foo'], fields=['my_field'])['foo']['mappings']['doc']['my_field']['mapping'])
+
+    def test_migrate_with_es_mapping_with_existing_index(self):
+        self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"my_field": {"type": "keyword"}}}}}')
+        self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"other": {"type": "keyword"}}}}}')
+
+        self.assertEqual({'foo': {'mappings': {}}}, self.es.indices.get_field_mapping(index=['foo'], fields=['other']))
