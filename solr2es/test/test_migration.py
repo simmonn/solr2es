@@ -84,3 +84,13 @@ class TestMigration(unittest.TestCase):
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual(doc['my_baz'], "content")
+
+    def test_migrate_nested_fields_with_translation_map(self):
+        TestMigration.solr.add([{"id": "142", "nested_field": "content"}])
+
+        self.solr2es.migrate('foo',
+                             '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
+                             {"nested_field": "nested.a.b.c"})
+
+        doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
+        self.assertEqual({'a': {'b': {'c': 'content'}}}, doc['nested'])
