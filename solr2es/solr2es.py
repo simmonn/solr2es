@@ -135,7 +135,7 @@ def translate_doc(row, translation_map):
             translated_value = value[0]
 
         if '.' in translated_key:
-            translated_value = dotkey_nested_dict('.'.join(translated_key.split('.')[1:]), translated_value)
+            translated_value = dotkey_nested_dict(translated_key.split('.')[1:], translated_value)
             translated_key = translated_key.split('.')[0]
 
         return translated_key, translated_value
@@ -143,11 +143,11 @@ def translate_doc(row, translation_map):
     return dict(translate(k, v) for k, v in row.items())
 
 
-def dotkey_nested_dict(key, value):
-    if not '.' in key:
-        return {key: value}
-    nested_key = key.split('.')[-1]
-    return dotkey_nested_dict('.'.join(key.split('.')[0:-1]), {nested_key: value})
+def dotkey_nested_dict(key_list, value):
+    if len(key_list) == 1:
+        return {key_list[0]: value}
+    last_key = key_list[-1]
+    return dotkey_nested_dict(key_list[0:-1], {last_key: value})
 
 
 def dump_into_redis(solrurl, redishost):
