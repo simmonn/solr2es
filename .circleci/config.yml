@@ -9,7 +9,7 @@ jobs:
           - "cluster.name=solr2es"
           - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
         name: elasticsearch
-      - image: solr:7.5
+      - image: solr:6.6.0
         name: solr
       - image: redis:4.0.1-alpine
         name: redis
@@ -33,7 +33,7 @@ jobs:
 
       - run:
           name: create solr core
-          command: curl "http://solr:8983/solr/admin/cores?action=CREATE&name=test_core&instanceDir=/opt/solr/server/solr/configsets/_default/conf/"
+          command: curl "http://solr:8983/solr/admin/cores?action=CREATE&name=test_core&instanceDir=/opt/solr/server/solr/configsets/basic_configs/"
 
       - save_cache:
           paths:

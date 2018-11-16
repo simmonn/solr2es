@@ -21,6 +21,8 @@ class TestMigration(unittest.TestCase):
         cls.solr.session.close()
 
     def setUp(self):
+        requests.post('http://solr:8983/solr/test_core/schema', headers={'Content-Type': 'application/json'},
+                      data='{ "add-field":{ "name":"title", "type":"string", "stored":true }}')
         self.solr2es = Solr2Es(TestMigration.solr, TestMigration.es, refresh=True)
 
     def tearDown(self):
@@ -62,10 +64,10 @@ class TestMigration(unittest.TestCase):
         self.assertEqual({'foo': {'mappings': {}}}, self.es.indices.get_field_mapping(index=['foo'], fields=['other']))
 
     def test_migrate_with_mapping_on_same_name_existing_field(self):
-        TestMigration.solr.add([{"my_field": "content"}])
-        self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"my_field": {"type": "keyword"}}}}}')
+        TestMigration.solr.add([{"id": 321, "title": "content"}])
+        self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"title": {"type": "keyword"}}}}}')
 
-        self.assertEqual(1, self.es.search('foo', 'doc', {'query': {'term': {'my_field': 'content'}}})['hits']['total'])
+        self.assertEqual(1, self.es.search('foo', 'doc', {'query': {'term': {'title': 'content'}}})['hits']['total'])
 
     def test_migrate_with_mapping_on_same_existing_field_with_different_types(self):
         requests.post('http://solr:8983/solr/test_core/schema', headers={'Content-Type': 'application/json'},
@@ -76,6 +78,8 @@ class TestMigration(unittest.TestCase):
         self.assertFalse(self.es.exists(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="123"))
 
     def test_migrate_different_fields_with_translation_map(self):
+        requests.post('http://solr:8983/solr/test_core/schema', headers={'Content-Type': 'application/json'},
+                      data='{ "add-field":{ "name":"my_bar", "type":"string", "stored":true }}')
         TestMigration.solr.add([{"id": "142", "my_bar": "content"}])
 
         self.solr2es.migrate('foo',
@@ -86,6 +90,8 @@ class TestMigration(unittest.TestCase):
         self.assertEqual(doc['my_baz'], "content")
 
     def test_migrate_nested_fields_with_translation_map(self):
+        requests.post('http://solr:8983/solr/test_core/schema', headers={'Content-Type': 'application/json'},
+                      data='{ "add-field":{ "name":"nested_field", "type":"string", "stored":true }}')
         TestMigration.solr.add([{"id": "142", "nested_field": "content"}])
 
         self.solr2es.migrate('foo',
