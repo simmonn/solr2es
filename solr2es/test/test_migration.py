@@ -4,7 +4,7 @@ import requests
 from elasticsearch import Elasticsearch
 from pysolr import Solr
 
-from solr2es.solr2es import Solr2Es, DEFAULT_ES_DOC_TYPE
+from solr2es.solr2es import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc
 
 
 class TestMigration(unittest.TestCase):
@@ -80,7 +80,7 @@ class TestMigration(unittest.TestCase):
 
         self.solr2es.migrate('foo',
                              '{"mappings": {"doc": {"properties": {"my_baz": {"type": "text"}}}}}',
-                             {"my_bar": "my_baz"})
+                             {"my_bar": {'name': "my_baz"}})
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual(doc['my_baz'], "content")
@@ -90,7 +90,46 @@ class TestMigration(unittest.TestCase):
 
         self.solr2es.migrate('foo',
                              '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-                             {"nested_field": "nested.a.b.c"})
+                             {"nested_field": {"name":"nested.a.b.c"}})
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual({'a': {'b': {'c': 'content'}}}, doc['nested'])
+
+    # def test_migrate_sibling_nested_fields_with_translation_map(self):
+    #     TestMigration.solr.add([{"id": "142", "nested_field1": "content1", "nested_field2": "content2"}])
+    #
+    #     self.solr2es.migrate('foo',
+    #                          '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
+    #                          {"nested_field1": {"name": "nested.a.b"}, "nested_field2": {"name": "nested.a.c"}})
+    #
+    #     doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
+    #     self.assertEqual({'a': {'b': 'content1', 'c': 'content2'}}, doc['nested'])
+
+    # def test_migrate_sibling_nested_fields_with_wildcard(self):
+    #     TestMigration.solr.add([{"id": "142", "nested_field1": "content1", "nested_field2": "content2"}])
+    #     self.solr2es.migrate('foo',
+    #                          '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
+    #                          {"nested_(.*)": {"name": "nested.\1"}})
+    #     doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
+    #     self.assertEqual({'field1': 'content1', 'field2': 'content2'}, doc['nested'])
+    #
+    # def test_migrate_with_default_field_value(self):
+    #     TestMigration.solr.add([{"id": "142"}])
+    #     self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
+    #                          {"new_field": {'default_value': 'john doe'}})
+    #     doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
+    #     self.assertEqual('john doe', doc['new_field'])
+
+
+class TestTranslateDoc(unittest.TestCase):
+    def test_with_nested_field(self):
+        self.assertEqual({'a': {'b': {'c': 'value'}}}, translate_doc({'a_b_c': 'value'}, {'a_b_c': {'name': 'a.b.c'}}))
+
+    # def test_with_sibling_nested_fields(self):
+    #     self.assertEqual({'a': {'b': 'value1', 'c': 'value2'}},
+    #                      translate_doc({'a_b': 'value1', 'a_c': 'value2'}, {'a_b': {'name': 'a.b'}, 'a_c': {'name': 'a.c'}}))
+    #
+    # def test_with_sibling_nested_fields_in_depth(self):
+    #     self.assertEqual({'a': {'b': {'c': {'d': 'value1'}}, 'e': 'value2'}},
+    #                      translate_doc({'a_b_c_d': 'value1', 'a_b_e': 'value2'}, {'a_b_c_d': {'name': 'a.b.c.d'}, 'a_b_e': {'name': 'a.b.e'}}))
+    #

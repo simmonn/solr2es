@@ -74,7 +74,7 @@ class Solr2EsAsync(object):
     async def migrate(self, index_name) -> int:
         nb_results = 0
         async for results in self.produce_results():
-            actions = create_es_actions(index_name, results)
+            actions = create_es_actions(index_name, results, {})
             await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
         return nb_results
@@ -128,7 +128,7 @@ def create_es_actions(index_name, solr_results, translation_map):
 
 def translate_doc(row, translation_map):
     def translate(key, value):
-        translated_key = translation_map.get(key, key)
+        translated_key = translation_map.get(key, dict()).get('name', key)
 
         translated_value = value
         if type(value) is list:
@@ -140,14 +140,25 @@ def translate_doc(row, translation_map):
 
         return translated_key, translated_value
 
-    return dict(translate(k, v) for k, v in row.items())
+    d = tuple(translate(k, v) for k, v in row.items())
+    return tuples_to_dict(d)
+
+
+def tuples_to_dict(tuples):
+    ret = dict()
+    for k, v in tuples:
+        if isinstance(v, tuple):
+            ret[k] = tuples_to_dict([v])
+        else:
+            ret[k] = v
+    return ret
 
 
 def dotkey_nested_dict(key_list, value):
     if len(key_list) == 1:
-        return {key_list[0]: value}
+        return key_list[0], value
     last_key = key_list[-1]
-    return dotkey_nested_dict(key_list[0:-1], {last_key: value})
+    return dotkey_nested_dict(key_list[0:-1], (last_key, value))
 
 
 def dump_into_redis(solrurl, redishost):
