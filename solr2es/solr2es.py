@@ -131,9 +131,7 @@ def create_es_actions(index_name, solr_results, translation_map):
 def translate_doc(row, translation_map):
     def translate(key, value):
         translated_key = retrieve_key_by_regexp(key, translation_map)
-        translated_value = value
-        if type(value) is list:
-            translated_value = value[0]
+        translated_value = value[0] if type(value) is list else value
 
         if '.' in translated_key:
             translated_value = dotkey_nested_dict(translated_key.split('.')[1:], translated_value)
@@ -156,7 +154,7 @@ def retrieve_key_by_regexp(key, translation_map):
 def tuples_to_dict(tuples):
     ret = dict()
     for k, v in tuples:
-        if isinstance(v, tuple):
+        if type(v) is tuple:
             if k in ret:
                 ret[k] = merge_dict(ret[k], tuples_to_dict([v]))
             else :
@@ -168,10 +166,7 @@ def tuples_to_dict(tuples):
 
 def merge_dict(a, b):
     for (k, v), (k2, v2) in zip(a.items(), b.items()):
-        if k == k2:
-            return {k: merge_dict(v, v2)}
-        else:
-            return {k: v, k2: v2}
+        return {k: merge_dict(v, v2)} if k == k2 else {k: v, k2: v2}
 
 
 def dotkey_nested_dict(key_list, value):
