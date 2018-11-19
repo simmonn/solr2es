@@ -48,6 +48,13 @@ class TestMigration(unittest.TestCase):
         ])
         self.assertEqual(2, self.solr2es.migrate('foo'))
 
+    def test_migrate_two_docs_with_id_filter(self):
+        TestMigration.solr.add([
+            {"id": "abc", "title": "A first document"},
+            {"id": "def", "title": "A second document"}
+        ])
+        self.assertEqual(1, self.solr2es.migrate('foo', solr_filter_query='id:d*'))
+
     def test_migrate_twelve_docs(self):
         TestMigration.solr.add([{"id": "id_%d" % i, "title": "A %d document" % i} for i in range(0, 12)])
         self.assertEqual(12, self.solr2es.migrate('foo'))
@@ -74,7 +81,8 @@ class TestMigration(unittest.TestCase):
                       data='{ "add-field":{ "name":"my_int", "type":"pint", "stored":true }}')
         TestMigration.solr.add([{"id": '123', "my_int": 12}])
 
-        self.assertEqual(0, self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"my_int": {"type": "date", "format": "date_time"}}}}}'))
+        self.assertEqual(0, self.solr2es.migrate('foo',
+                                                 '{"mappings": {"doc": {"properties": {"my_int": {"type": "date", "format": "date_time"}}}}}'))
         self.assertFalse(self.es.exists(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="123"))
 
     def test_migrate_different_fields_with_translation_map(self):
@@ -82,8 +90,7 @@ class TestMigration(unittest.TestCase):
                       data='{ "add-field":{ "name":"my_bar", "type":"string", "stored":true }}')
         TestMigration.solr.add([{"id": "142", "my_bar": "content"}])
 
-        self.solr2es.migrate('foo',
-                             '{"mappings": {"doc": {"properties": {"my_baz": {"type": "text"}}}}}',
+        self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"my_baz": {"type": "text"}}}}}',
                              {"my_bar": {'name': "my_baz"}})
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
@@ -94,9 +101,8 @@ class TestMigration(unittest.TestCase):
                       data='{ "add-field":{ "name":"nested_field", "type":"string", "stored":true }}')
         TestMigration.solr.add([{"id": "142", "nested_field": "content"}])
 
-        self.solr2es.migrate('foo',
-                             '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-                             {"nested_field": {"name":"nested.a.b.c"}})
+        self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
+                             {"nested_field": {"name": "nested.a.b.c"}})
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual({'a': {'b': {'c': 'content'}}}, doc['nested'])
@@ -107,9 +113,8 @@ class TestMigration(unittest.TestCase):
         requests.post('http://solr:8983/solr/test_core/schema', headers={'Content-Type': 'application/json'},
                       data='{ "add-field":{ "name":"nested_field2", "type":"string", "stored":true }}')
         TestMigration.solr.add([{"id": "142", "nested_field1": "content1", "nested_field2": "content2"}])
-    
-        self.solr2es.migrate('foo',
-                             '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
+
+        self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
                              {"nested_field1": {"name": "nested.a.b"}, "nested_field2": {"name": "nested.a.c"}})
     
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
