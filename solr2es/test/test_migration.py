@@ -4,7 +4,7 @@ import requests
 from elasticsearch import Elasticsearch
 from pysolr import Solr
 
-from solr2es.solr2es import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc
+from solr2es.solr2es import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc, tuples_to_dict
 
 
 class TestMigration(unittest.TestCase):
@@ -95,15 +95,15 @@ class TestMigration(unittest.TestCase):
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual({'a': {'b': {'c': 'content'}}}, doc['nested'])
 
-    # def test_migrate_sibling_nested_fields_with_translation_map(self):
-    #     TestMigration.solr.add([{"id": "142", "nested_field1": "content1", "nested_field2": "content2"}])
-    #
-    #     self.solr2es.migrate('foo',
-    #                          '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-    #                          {"nested_field1": {"name": "nested.a.b"}, "nested_field2": {"name": "nested.a.c"}})
-    #
-    #     doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
-    #     self.assertEqual({'a': {'b': 'content1', 'c': 'content2'}}, doc['nested'])
+    def test_migrate_sibling_nested_fields_with_translation_map(self):
+        TestMigration.solr.add([{"id": "142", "nested_field1": "content1", "nested_field2": "content2"}])
+    
+        self.solr2es.migrate('foo',
+                             '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
+                             {"nested_field1": {"name": "nested.a.b"}, "nested_field2": {"name": "nested.a.c"}})
+    
+        doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
+        self.assertEqual({'a': {'b': 'content1', 'c': 'content2'}}, doc['nested'])
 
     # def test_migrate_sibling_nested_fields_with_wildcard(self):
     #     TestMigration.solr.add([{"id": "142", "nested_field1": "content1", "nested_field2": "content2"}])
@@ -124,6 +124,18 @@ class TestMigration(unittest.TestCase):
 class TestTranslateDoc(unittest.TestCase):
     def test_with_nested_field(self):
         self.assertEqual({'a': {'b': {'c': 'value'}}}, translate_doc({'a_b_c': 'value'}, {'a_b_c': {'name': 'a.b.c'}}))
+
+    def test_with_simple_field(self):
+        self.assertEqual({'a': 'b'}, tuples_to_dict([('a', 'b')]))
+
+    def test_with_complex_field(self):
+        self.assertEqual({'a': {'b': 'c'}}, tuples_to_dict([('a', ('b', 'c'))]))
+
+    def test_with_very_complex_field(self):
+            self.assertEqual({'a': {'b': 'content1', 'c': 'content2'}}, tuples_to_dict([('a', ('b', 'content1')), ('a', ('c', 'content2'))]))
+
+    def test_with_more_complex_field(self):
+            self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2'}}}, tuples_to_dict([('nested', ('a', ('b', 'content1'))), ('nested', ('a', ('c', 'content2')))]))
 
     # def test_with_sibling_nested_fields(self):
     #     self.assertEqual({'a': {'b': 'value1', 'c': 'value2'}},

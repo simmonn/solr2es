@@ -144,11 +144,22 @@ def translate_doc(row, translation_map):
     return tuples_to_dict(d)
 
 
+def merge_dict(a, b):
+    for (k, v), (k2, v2) in zip(a.items(), b.items()):
+        if k == k2:
+            return {k: merge_dict(v, v2)}
+        else:
+            return {k: v, k2: v2}
+
+
 def tuples_to_dict(tuples):
     ret = dict()
     for k, v in tuples:
         if isinstance(v, tuple):
-            ret[k] = tuples_to_dict([v])
+            if k in ret:
+                ret[k] = merge_dict(ret[k], tuples_to_dict([v]))
+            else :
+                ret[k] = tuples_to_dict([v])
         else:
             ret[k] = v
     return ret
