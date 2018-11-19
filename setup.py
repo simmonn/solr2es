@@ -31,7 +31,7 @@ tests_require = [
 ]
 setup(
     name=NAME,
-    version='0.3',
+    version='0.4',
     description='Python solr/elasticsearch migration script',
     long_description=README + '\n\n' + CHANGES,
     classifiers=[

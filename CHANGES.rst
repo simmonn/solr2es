@@ -1,6 +1,13 @@
 Changes
 =======
 
+v. 0.4
+------
+
+* [solr2es] wildcard support in translation_map
+* [solr2es] nested fields support in translation_map
+* [solr2es] adds solrid parameter to change sort field
+* [solr2es] adds solrfq parameter to parallelize solr reading
 
 v. 0.3
 ------
