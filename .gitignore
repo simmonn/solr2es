@@ -1,4 +1,5 @@
 .idea
+*.log
 venv
 *.egg-info
 .eggs
