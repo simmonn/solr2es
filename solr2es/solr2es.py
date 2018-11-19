@@ -3,6 +3,7 @@ import asyncio
 import getopt
 import itertools
 import logging
+import re
 import sys
 from functools import partial
 from json import loads, dumps
@@ -129,8 +130,7 @@ def create_es_actions(index_name, solr_results, translation_map):
 
 def translate_doc(row, translation_map):
     def translate(key, value):
-        translated_key = translation_map.get(key, dict()).get('name', key)
-
+        translated_key = retrieve_key_by_regexp(key, translation_map)
         translated_value = value
         if type(value) is list:
             translated_value = value[0]
@@ -145,12 +145,12 @@ def translate_doc(row, translation_map):
     return tuples_to_dict(d)
 
 
-def merge_dict(a, b):
-    for (k, v), (k2, v2) in zip(a.items(), b.items()):
-        if k == k2:
-            return {k: merge_dict(v, v2)}
-        else:
-            return {k: v, k2: v2}
+def retrieve_key_by_regexp(key, translation_map):
+    for k, v in translation_map.items():
+        if re.search(k, key):
+            name = v.get('name', v)
+            return name.replace('$1', re.search(k, key).group(1)) if '$1' in name else name
+    return key
 
 
 def tuples_to_dict(tuples):
@@ -164,6 +164,14 @@ def tuples_to_dict(tuples):
         else:
             ret[k] = v
     return ret
+
+
+def merge_dict(a, b):
+    for (k, v), (k2, v2) in zip(a.items(), b.items()):
+        if k == k2:
+            return {k: merge_dict(v, v2)}
+        else:
+            return {k: v, k2: v2}
 
 
 def dotkey_nested_dict(key_list, value):
