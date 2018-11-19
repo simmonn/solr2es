@@ -2,7 +2,8 @@ import unittest
 
 import requests
 from elasticsearch import Elasticsearch
-from pysolr import Solr
+from nose.tools import raises, assert_raises
+from pysolr import Solr, SolrError
 
 from solr2es.solr2es import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc, tuples_to_dict
 
@@ -47,6 +48,13 @@ class TestMigration(unittest.TestCase):
             {"id": "id_2", "title": "A second document"}
         ])
         self.assertEqual(2, self.solr2es.migrate('foo'))
+
+    def test_migrate_with_custom_sort_field_not_unique(self):
+        TestMigration.solr.add([{"id": "id", "title": "A document"}])
+        with assert_raises(SolrError) as se:
+            self.solr2es.migrate('foo', sort_field='title')
+        self.assertTrue('Cursor functionality requires a sort containing a uniqueKey field tie breaker'
+                        in str(se.exception))
 
     def test_migrate_two_docs_with_id_filter(self):
         TestMigration.solr.add([
