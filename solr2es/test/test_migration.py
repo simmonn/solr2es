@@ -2,7 +2,7 @@ import unittest
 
 import requests
 from elasticsearch import Elasticsearch
-from nose.tools import raises, assert_raises
+from nose.tools import assert_raises
 from pysolr import Solr, SolrError
 
 from solr2es.solr2es import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc, tuples_to_dict
