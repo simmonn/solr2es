@@ -181,35 +181,38 @@ def dotkey_nested_dict(key_list, value):
     return dotkey_nested_dict(key_list[0:-1], (last_key, value))
 
 
-def dump_into_redis(solrhost, redishost, solrfq):
+def dump_into_redis(solrhost, redishost, solrfq, solrid):
     LOGGER.info('dump from solr (%s) into redis (host=%s) with filter query (%s)', solrhost, redishost, solrfq)
-    RedisConsumer(redis.Redis(host=redishost)).consume(partial(Solr2Es(Solr(solrhost, always_commit=True), None).produce_results, solr_filter_query=solrfq))
+    RedisConsumer(redis.Redis(host=redishost)).consume(partial(Solr2Es(Solr(solrhost, always_commit=True), None).produce_results,
+                                                               solr_filter_query=solrfq, sort_field=solrid))
 
 
 def resume_from_redis(redishost, eshost, name):
     LOGGER.info('resume from redis (host=%s) to elasticsearch (%s) index %s', redishost, eshost, name)
 
 
-def migrate(solrhost, eshost, index_name, solrfq):
+def migrate(solrhost, eshost, index_name, solrfq, solrid):
     LOGGER.info('migrate from solr (%s) into elasticsearch (%s) index %s and filter query (%s)', solrhost, eshost, index_name, solrfq)
-    Solr2Es(Solr(solrhost, always_commit=True), Elasticsearch(host=eshost)).migrate(index_name)
+    Solr2Es(Solr(solrhost, always_commit=True), Elasticsearch(host=eshost)).migrate(index_name, solr_filter_query=solrfq, sort_field=solrid)
 
 
-async def aiodump_into_redis(solrhost, redishost, solrfq):
+async def aiodump_into_redis(solrhost, redishost, solrfq, solrid):
     LOGGER.info('asyncio dump from solr (%s) into redis (host=%s) with filter query (%s)', solrhost, redishost, solrfq)
     async with aiohttp.ClientSession() as session:
         await RedisConsumerAsync(await asyncio_redis.Pool.create(host=redishost, port=6379, poolsize=10)).\
-            consume(partial(Solr2EsAsync(session, None, solrhost).produce_results, solr_filter_query=solrfq))
+            consume(partial(Solr2EsAsync(session, None, solrhost).produce_results, solr_filter_query=solrfq, sort_field=solrid))
 
 
 async def aioresume_from_redis(redishost, eshost, name):
     LOGGER.info('asyncio resume from redis (host=%s) to elasticsearch (%s) index %s', redishost, eshost, name)
 
 
-async def aiomigrate(solrhost, eshost, name, solrfq):
-    LOGGER.info('asyncio migrate from solr (%s) into elasticsearch (%s) index %s with filter query (%s)', solrhost, eshost, name, solrfq)
+async def aiomigrate(solrhost, eshost, name, solrfq, solrid):
+    LOGGER.info('asyncio migrate from solr (%s) into elasticsearch (%s) index %s with filter query (%s) and with id (%s)',
+                solrhost, eshost, name, solrfq, solrid)
     async with aiohttp.ClientSession() as session:
-        await Solr2EsAsync(session, AsyncElasticsearch(hosts=[eshost]), solrhost).migrate(name, solr_filter_query=solrfq)
+        await Solr2EsAsync(session, AsyncElasticsearch(hosts=[eshost]), solrhost).migrate(
+            name, solr_filter_query=solrfq, sort_field=solrid)
 
 
 def usage(argv):
@@ -219,17 +222,19 @@ def usage(argv):
     print('\t-d|--dump: dump into redis')
     print('\t-t|--test: test solr/elasticsearch connections')
     print('\t-a|--async: use python 3 asyncio')
-    print('\t--solrhost: solr host (default solr)')
-    print('\t--solrfq: solr filter query (default *)')
+    print('\t--solrhost: solr host (default \'solr\')')
+    print('\t--solrfq: solr filter query (default \'*\')')
+    print('\t--solrid: solr id field name (default \'id\')')
     print('\t--index: index name (default solr core name)')
-    print('\t--core: core name (default solr2es)')
-    print('\t--eshost: elasticsearch url (default elasticsearch)')
-    print('\t--redishost: redis host (default redis)')
+    print('\t--core: core name (default \'solr2es\')')
+    print('\t--eshost: elasticsearch url (default \'elasticsearch\')')
+    print('\t--redishost: redis host (default \'redis\')')
 
 
 if __name__ == '__main__':
     options, remainder = getopt.gnu_getopt(sys.argv[1:], 'hmdtra',
-            ['help', 'migrate', 'dump', 'test', 'resume', 'async', 'solrhost=', 'eshost=', 'redishost=', 'index=', 'core=', 'solrfq='])
+            ['help', 'migrate', 'dump', 'test', 'resume', 'async', 'solrhost=', 'eshost=',
+             'redishost=', 'index=', 'core=', 'solrfq=', 'solrid='])
     if len(sys.argv) == 1:
         usage(sys.argv)
         sys.exit()
@@ -238,6 +243,7 @@ if __name__ == '__main__':
     with_asyncio = False
     solrhost = 'solr'
     solrfq = '*'
+    solrid = 'id'
     eshost = 'elasticsearch'
     redishost = 'redis'
     core_name = 'solr2es'
@@ -256,6 +262,9 @@ if __name__ == '__main__':
 
         if opt == '--solrfq':
             solrfq = arg
+
+        if opt == '--solrid':
+            solrid = arg
 
         if opt == '--redishost':
             redishost = arg
@@ -284,9 +293,11 @@ if __name__ == '__main__':
     solrurl = 'http://%s:8983/solr/%s' % (solrhost, core_name)
 
     if action == 'migrate':
-        aioloop.run_until_complete(aiomigrate(solrurl, eshost, index_name, solrfq)) if with_asyncio else migrate(solrurl, eshost, index_name, solrfq)
+        aioloop.run_until_complete(aiomigrate(solrurl, eshost, index_name, solrfq, solrid)) if with_asyncio \
+            else migrate(solrurl, eshost, index_name, solrfq, solrid)
     elif action == 'dump':
-        aioloop.run_until_complete(aiodump_into_redis(solrurl, redishost, solrfq)) if with_asyncio else dump_into_redis(solrurl, redishost, solrfq)
+        aioloop.run_until_complete(aiodump_into_redis(solrurl, redishost, solrfq, solrid)) if with_asyncio \
+            else dump_into_redis(solrurl, redishost, solrfq, solrid)
     elif action == 'resume':
         aioloop.run_until_complete(aioresume_from_redis(redishost, eshost, index_name)) if with_asyncio else resume_from_redis(redishost, eshost, index_name)
     elif action == 'test':
