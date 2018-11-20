@@ -136,14 +136,15 @@ def translate_doc(row, translation_map):
         if '.' in translated_key:
             translated_value = dotkey_nested_dict(translated_key.split('.')[1:], translated_value)
             translated_key = translated_key.split('.')[0]
+
         return translated_key, translated_value
 
-    d = set_default_value(row, translation_map)
-    e = tuple(translate(k, v) for k, v in d.items())
-    return tuples_to_dict(e)
+    defaults = set_default_values(row, translation_map)
+    translated = tuple(translate(k, v) for k, v in defaults.items())
+    return tuples_to_dict(translated)
 
 
-def set_default_value(d, translation_map):
+def set_default_values(d, translation_map):
     default_values = list(map(lambda x: {x[0]: x[1]['default_value']},
                               list(filter(lambda k: k[1] and type(k[1]) is dict and 'default_value' in k[1].keys(),
                                           translation_map.items()))))
