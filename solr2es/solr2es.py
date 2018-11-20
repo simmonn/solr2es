@@ -139,26 +139,16 @@ def translate_doc(row, translation_map):
 
         return translated_key, translated_value
 
-    defaults = set_default_values(row, translation_map)
+    defaults = {k: v.get('default_value') for k, v in translation_map.items() if 'default_value' in v}
+    defaults.update(row)
     translated = tuple(translate(k, v) for k, v in defaults.items())
     return tuples_to_dict(translated)
 
 
-def set_default_values(d, translation_map):
-    default_values = list(map(lambda x: {x[0]: x[1]['default_value']},
-                              list(filter(lambda k: k[1] and type(k[1]) is dict and 'default_value' in k[1].keys(),
-                                          translation_map.items()))))
-    for x in default_values:
-        if not list(x.keys())[0] in d.keys():
-            d.update(x)
-        translation_map.pop(list(x.keys())[0])
-    return d
-
-
 def retrieve_key_by_regexp(key, translation_map):
-    for k, v in translation_map.items():
+    for k, v in {k: v.get('name') for k, v in translation_map.items() if 'name' in v}.items():
         if re.search(k, key):
-            name = v.get('name', v)
+            name = v
             return name.replace('$1', re.search(k, key).group(1)) if '$1' in name else name
     return key
 
