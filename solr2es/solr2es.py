@@ -15,7 +15,7 @@ from elasticsearch import Elasticsearch
 from elasticsearch_async import AsyncElasticsearch
 from pysolr import Solr, SolrCoreAdmin
 
-logging.basicConfig(format='%(asctime)s [%(name)s] %(levelname)s: %(message)s')
+logging.basicConfig(format='%(asctime)s [%(name)s] %(process)d %(levelname)s: %(message)s')
 LOGGER = logging.getLogger('solr2es')
 LOGGER.setLevel(logging.INFO)
 
