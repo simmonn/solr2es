@@ -136,10 +136,26 @@ class TestMigration(unittest.TestCase):
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual({'field1': 'content1', 'field2': 'content2'}, doc['nested'])
 
-    # def test_migrate_with_default_field_value(self):
+    def test_migrate_with_default_field_value_on_unexisting_field(self):
+        TestMigration.solr.add([{"id": "142"}])
+        self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
+                             {"new_field": {'default_value': 'john doe'}, 'field1': {'name': 'field1'}})
+        doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
+        self.assertEqual('john doe', doc['new_field'])
+
+    # def test_migrate_with_default_field_value_on_existing_field(self):
+    #     requests.post('http://solr:8983/solr/test_core/schema', headers={'Content-Type': 'application/json'},
+    #                   data='{ "add-field":{ "name":"field1", "type":"string", "stored":true }}')
+    #     TestMigration.solr.add([{"id": "142", "field1": "content1"}])
+    #     self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
+    #                          {"field1": {'default_value': 'content2'}})
+    #     doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
+    #     self.assertEqual('content1', doc['field1'])
+
+    # def test_migrate_with_default_field_value_on_multiple_fields(self):
     #     TestMigration.solr.add([{"id": "142"}])
     #     self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-    #                          {"new_field": {'default_value': 'john doe'}})
+    #                          {"new_field1": {'default_value': 'john doe'}, 'new_field2': {'default_value': 'adam martin'}})
     #     doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
     #     self.assertEqual('john doe', doc['new_field'])
 
