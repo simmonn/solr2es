@@ -147,11 +147,9 @@ def set_default_value(d, translation_map):
     default_values = list(map(lambda x: {x[0]: x[1]['default_value']},
                               list(filter(lambda k: k[1] and type(k[1]) is dict and 'default_value' in k[1].keys(),
                                           translation_map.items()))))
-    if len(default_values) > 0:
-        default_values[0].update(d)
-        return default_values[0]
-    else:
-        return d
+    for x in default_values :
+        d.update(x)
+    return d
 
 
 def retrieve_key_by_regexp(key, translation_map):

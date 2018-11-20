@@ -152,12 +152,13 @@ class TestMigration(unittest.TestCase):
     #     doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
     #     self.assertEqual('content1', doc['field1'])
 
-    # def test_migrate_with_default_field_value_on_multiple_fields(self):
-    #     TestMigration.solr.add([{"id": "142"}])
-    #     self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-    #                          {"new_field1": {'default_value': 'john doe'}, 'new_field2': {'default_value': 'adam martin'}})
-    #     doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
-    #     self.assertEqual('john doe', doc['new_field'])
+    def test_migrate_with_default_field_value_on_multiple_fields(self):
+        TestMigration.solr.add([{"id": "142"}])
+        self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
+                             {"new_field1": {'default_value': 'john doe'}, 'new_field2': {'default_value': 'bob smith'}})
+        doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
+        self.assertEqual('john doe', doc['new_field1'])
+        self.assertEqual('bob smith', doc['new_field2'])
 
 
 class TestTranslateDoc(unittest.TestCase):
