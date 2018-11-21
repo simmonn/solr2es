@@ -13,6 +13,12 @@ jobs:
         name: solr
       - image: redis:4.0.1-alpine
         name: redis
+      - image: postgres:10.4
+        name: postgresql
+        environment:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: solr2es
 
     working_directory: ~/repo
 
