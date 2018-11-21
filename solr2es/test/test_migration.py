@@ -5,7 +5,7 @@ from elasticsearch import Elasticsearch
 from nose.tools import assert_raises
 from pysolr import Solr, SolrError
 
-from solr2es.solr2es import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc, tuples_to_dict
+from solr2es.solr2es import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc, _tuples_to_dict
 
 
 class TestMigration(unittest.TestCase):
@@ -176,13 +176,13 @@ class TestTranslateDoc(unittest.TestCase):
 
 class TestTupesToDict(unittest.TestCase):
     def test_with_simple_field(self):
-        self.assertEqual({'a': 'b'}, tuples_to_dict([('a', 'b')]))
+        self.assertEqual({'a': 'b'}, _tuples_to_dict([('a', 'b')]))
 
     def test_with_complex_field(self):
-        self.assertEqual({'a': {'b': 'c'}}, tuples_to_dict([('a', ('b', 'c'))]))
+        self.assertEqual({'a': {'b': 'c'}}, _tuples_to_dict([('a', ('b', 'c'))]))
 
     def test_with_very_complex_field(self):
-            self.assertEqual({'a': {'b': 'content1', 'c': 'content2'}}, tuples_to_dict([('a', ('b', 'content1')), ('a', ('c', 'content2'))]))
+            self.assertEqual({'a': {'b': 'content1', 'c': 'content2'}}, _tuples_to_dict([('a', ('b', 'content1')), ('a', ('c', 'content2'))]))
 
     def test_with_more_complex_field(self):
-            self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2'}}}, tuples_to_dict([('nested', ('a', ('b', 'content1'))), ('nested', ('a', ('c', 'content2')))]))
+            self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2'}}}, _tuples_to_dict([('nested', ('a', ('b', 'content1'))), ('nested', ('a', ('c', 'content2')))]))

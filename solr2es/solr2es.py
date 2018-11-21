@@ -133,11 +133,11 @@ def create_es_actions(index_name, solr_results, translation_map):
 
 def translate_doc(row, translation_names, default_values):
     def translate(key, value):
-        translated_key = translate_key(key, translation_names)
+        translated_key = _translate_key(key, translation_names)
         translated_value = value[0] if type(value) is list else value
 
         if '.' in translated_key:
-            translated_value = dotkey_nested_dict(translated_key.split('.')[1:], translated_value)
+            translated_value = _dotkey_nested_dict(translated_key.split('.')[1:], translated_value)
             translated_key = translated_key.split('.')[0]
 
         return translated_key, translated_value
@@ -145,10 +145,10 @@ def translate_doc(row, translation_names, default_values):
     defaults = default_values.copy()
     defaults.update(row)
     translated = tuple(translate(k, v) for k, v in defaults.items())
-    return tuples_to_dict(translated)
+    return _tuples_to_dict(translated)
 
 
-def translate_key(key, translation_names):
+def _translate_key(key, translation_names):
     matched_fields = (((k, v) for k, v in translation_names.items() if re.search(k, key)))
     try:
         key_regexp, value_regexp = next(matched_fields)
@@ -157,29 +157,29 @@ def translate_key(key, translation_names):
         return key
 
 
-def tuples_to_dict(tuples):
+def _tuples_to_dict(tuples):
     ret = dict()
     for k, v in tuples:
         if type(v) is tuple:
             if k in ret:
-                ret[k] = merge_dict(ret[k], tuples_to_dict([v]))
+                ret[k] = _merge_dict(ret[k], _tuples_to_dict([v]))
             else:
-                ret[k] = tuples_to_dict([v])
+                ret[k] = _tuples_to_dict([v])
         else:
             ret[k] = v
     return ret
 
 
-def merge_dict(a, b):
+def _merge_dict(a, b):
     for (k, v), (k2, v2) in zip(a.items(), b.items()):
-        return {k: merge_dict(v, v2)} if k == k2 else {k: v, k2: v2}
+        return {k: _merge_dict(v, v2)} if k == k2 else {k: v, k2: v2}
 
 
-def dotkey_nested_dict(key_list, value):
+def _dotkey_nested_dict(key_list, value):
     if len(key_list) == 1:
         return key_list[0], value
     last_key = key_list[-1]
-    return dotkey_nested_dict(key_list[0:-1], (last_key, value))
+    return _dotkey_nested_dict(key_list[0:-1], (last_key, value))
 
 
 def dump_into_redis(solrhost, redishost, solrfq, solrid):
