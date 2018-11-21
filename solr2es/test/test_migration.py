@@ -165,6 +165,16 @@ class TestTranslateDoc(unittest.TestCase):
     def test_with_nested_field(self):
         self.assertEqual({'a': {'b': {'c': 'value'}}}, translate_doc({'a_b_c': 'value'}, {'a_b_c': 'a.b.c'}, {}))
 
+    def test_with_sibling_nested_fields(self):
+        self.assertEqual({'a': {'b': 'value1', 'c': 'value2'}},
+                         translate_doc({'a_b': 'value1', 'a_c': 'value2'}, {'a_b': 'a.b', 'a_c': 'a.c'}, {}))
+
+    def test_with_sibling_nested_fields_in_depth(self):
+        self.assertEqual({'a': {'b': {'c': {'d': 'value1'}, 'e': 'value2'}}},
+                         translate_doc({'a_b_c_d': 'value1', 'a_b_e': 'value2'}, {'a_b_c_d': 'a.b.c.d', 'a_b_e': 'a.b.e'}, {}))
+
+
+class TestTupesToDict(unittest.TestCase):
     def test_with_simple_field(self):
         self.assertEqual({'a': 'b'}, tuples_to_dict([('a', 'b')]))
 
@@ -176,11 +186,3 @@ class TestTranslateDoc(unittest.TestCase):
 
     def test_with_more_complex_field(self):
             self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2'}}}, tuples_to_dict([('nested', ('a', ('b', 'content1'))), ('nested', ('a', ('c', 'content2')))]))
-
-    def test_with_sibling_nested_fields(self):
-        self.assertEqual({'a': {'b': 'value1', 'c': 'value2'}},
-                         translate_doc({'a_b': 'value1', 'a_c': 'value2'}, {'a_b': 'a.b', 'a_c': 'a.c'}, {}))
-
-    def test_with_sibling_nested_fields_in_depth(self):
-        self.assertEqual({'a': {'b': {'c': {'d': 'value1'}, 'e': 'value2'}}},
-                         translate_doc({'a_b_c_d': 'value1', 'a_b_e': 'value2'}, {'a_b_c_d': 'a.b.c.d', 'a_b_e': 'a.b.e'}, {}))
