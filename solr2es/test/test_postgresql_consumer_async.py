@@ -1,11 +1,9 @@
 from json import loads
 
-import asyncio_redis
 import asynctest
 from aiopg import create_pool
 
 from solr2es.postgresql_consumer import PostgresqlConsumerAsync
-from solr2es.solr2es import RedisConsumerAsync
 
 
 class TestPostgresqlConsumerAsync(asynctest.TestCase):
