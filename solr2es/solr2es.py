@@ -122,7 +122,7 @@ class RedisConsumerAsync(object):
             await self.redis.lpush('solr2es:queue', list(map(dumps, results)))
 
 
-def create_es_actions(index_name, solr_results, translation_map):
+def create_es_actions(index_name, solr_results, translation_map) -> str:
     default_values = {k: v.get('default_value') for k, v in translation_map.items() if 'default_value' in v}
     translation_names = {k: v.get('name') for k, v in translation_map.items() if 'name' in v}
 
@@ -131,7 +131,7 @@ def create_es_actions(index_name, solr_results, translation_map):
     return '\n'.join(list(map(lambda d: dumps(d), chain(*results))))
 
 
-def translate_doc(row, translation_names, default_values):
+def translate_doc(row, translation_names, default_values) -> dict:
     def translate(key, value):
         translated_key = _translate_key(key, translation_names)
         translated_value = value[0] if type(value) is list else value
@@ -147,7 +147,7 @@ def translate_doc(row, translation_names, default_values):
     return _tuples_to_dict(translated)
 
 
-def _translate_key(key, translation_names):
+def _translate_key(key, translation_names) -> str:
     matched_fields = (((k, v) for k, v in translation_names.items() if re.search(k, key)))
     try:
         key_regexp, value_regexp = next(matched_fields)
@@ -156,7 +156,7 @@ def _translate_key(key, translation_names):
         return key
 
 
-def _tuples_to_dict(tuples):
+def _tuples_to_dict(tuples) -> dict:
     ret = dict()
     for k, v in tuples:
         if type(v) is tuple:
@@ -169,7 +169,7 @@ def _tuples_to_dict(tuples):
     return ret
 
 
-def _merge_dict(a, b):
+def _merge_dict(a, b) -> dict:
     for (k, v), (k2, v2) in zip(a.items(), b.items()):
         return {k: _merge_dict(v, v2)} if k == k2 else {k: v, k2: v2}
 
