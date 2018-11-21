@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 import asyncio
 import getopt
-import itertools
 import logging
 import re
 import sys
-from functools import partial
+from functools import partial, reduce
+from itertools import chain
 from json import loads, dumps
 
 import aiohttp
@@ -126,9 +126,9 @@ def create_es_actions(index_name, solr_results, translation_map):
     default_values = {k: v.get('default_value') for k, v in translation_map.items() if 'default_value' in v}
     translation_names = {k: v.get('name') for k, v in translation_map.items() if 'name' in v}
 
-    results_ = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row['id']}}, translate_doc(row, translation_names, default_values))
+    results = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row['id']}}, translate_doc(row, translation_names, default_values))
                 for row in solr_results]
-    return '\n'.join(list(map(lambda d: dumps(d), itertools.chain(*results_))))
+    return '\n'.join(list(map(lambda d: dumps(d), chain(*results))))
 
 
 def translate_doc(row, translation_names, default_values):
@@ -137,9 +137,8 @@ def translate_doc(row, translation_names, default_values):
         translated_value = value[0] if type(value) is list else value
 
         if '.' in translated_key:
-            translated_value = _dotkey_nested_dict(translated_key.split('.')[1:], translated_value)
+            translated_value = reduce(lambda i, acc: (acc, i), reversed(translated_key.split('.')[1:] + [value]))
             translated_key = translated_key.split('.')[0]
-
         return translated_key, translated_value
 
     defaults = default_values.copy()
@@ -173,13 +172,6 @@ def _tuples_to_dict(tuples):
 def _merge_dict(a, b):
     for (k, v), (k2, v2) in zip(a.items(), b.items()):
         return {k: _merge_dict(v, v2)} if k == k2 else {k: v, k2: v2}
-
-
-def _dotkey_nested_dict(key_list, value):
-    if len(key_list) == 1:
-        return key_list[0], value
-    last_key = key_list[-1]
-    return _dotkey_nested_dict(key_list[0:-1], (last_key, value))
 
 
 def dump_into_redis(solrhost, redishost, solrfq, solrid):
