@@ -23,7 +23,7 @@ class TestPostgresqlConsumer(unittest.TestCase):
         PostgresqlConsumer(self.connection).consume(producer)
 
         cur = self.connection.cursor()
-        cur.execute('SELECT extract_id, json FROM solr2es_queue ORDER BY extract_id')
+        cur.execute('SELECT extract_id, json, done FROM solr2es_queue ORDER BY extract_id')
         results = list(cur.fetchall())
 
         self.assertEqual(3, len(results))
