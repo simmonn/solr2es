@@ -182,15 +182,27 @@ class TestTranslateDoc(unittest.TestCase):
                          translate_doc({'a_b_c_d': 'value1', 'a_b_e': 'value2'}, {'a_b_c_d': 'a.b.c.d', 'a_b_e': 'a.b.e'}, {}))
 
 
-class TestTupesToDict(unittest.TestCase):
+class TestTuplesToDict(unittest.TestCase):
     def test_with_simple_field(self):
         self.assertEqual({'a': 'b'}, _tuples_to_dict([('a', 'b')]))
 
-    def test_with_complex_field(self):
+    def test_with_two_simple_fields(self):
+        self.assertEqual({'a': 'b', 'c': 'd'}, _tuples_to_dict((('a', 'b'), ('c', 'd'))))
+        self.assertEqual({'a': 'b', 'c': 'd'}, _tuples_to_dict([('a', 'b'), ('c', 'd')]))
+
+    def test_with_nested_one_value(self):
         self.assertEqual({'a': {'b': 'c'}}, _tuples_to_dict([('a', ('b', 'c'))]))
 
-    def test_with_very_complex_field(self):
-            self.assertEqual({'a': {'b': 'content1', 'c': 'content2'}}, _tuples_to_dict([('a', ('b', 'content1')), ('a', ('c', 'content2'))]))
+    def test_with_nested_two_values(self):
+        self.assertEqual({'a': {'b': 'content1', 'c': 'content2'}}, _tuples_to_dict([('a', ('b', 'content1')), ('a', ('c', 'content2'))]))
 
-    def test_with_more_complex_field(self):
-            self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2'}}}, _tuples_to_dict([('nested', ('a', ('b', 'content1'))), ('nested', ('a', ('c', 'content2')))]))
+    def test_with_two_nested_levels_homogeneous(self):
+        self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2'}}}, _tuples_to_dict([('nested', ('a', ('b', 'content1'))), ('nested', ('a', ('c', 'content2')))]))
+
+    def test_with_two_nested_levels_heterogeneous(self):
+        self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2', 'd': 'content3'}}},
+                         _tuples_to_dict([('nested', ('a', ('b', 'content1'))),
+                                          ('nested', ('a', (('c', 'content2'), ('d', 'content3'))))]))
+        self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2', 'd': 'content3'}}},
+                         _tuples_to_dict([('nested', ('a', ('b', 'content1'))),
+                                          ('nested', ('a', [('c', 'content2'), ('d', 'content3')]))]))

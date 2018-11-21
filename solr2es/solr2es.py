@@ -4,6 +4,7 @@ import getopt
 import logging
 import re
 import sys
+from collections import Mapping
 from functools import partial, reduce
 from itertools import chain
 from json import loads, dumps
@@ -123,8 +124,8 @@ class RedisConsumerAsync(object):
 
 
 def create_es_actions(index_name, solr_results, translation_map) -> str:
-    default_values = {k: v.get('default_value') for k, v in translation_map.items() if 'default_value' in v}
-    translation_names = {k: v.get('name') for k, v in translation_map.items() if 'name' in v}
+    default_values = {k: v['default_value'] for k, v in translation_map.items() if 'default_value' in v}
+    translation_names = {k: v['name'] for k, v in translation_map.items() if 'name' in v}
 
     results = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row['id']}}, translate_doc(row, translation_names, default_values))
                 for row in solr_results]
@@ -159,19 +160,27 @@ def _translate_key(key, translation_names) -> str:
 def _tuples_to_dict(tuples) -> dict:
     ret = dict()
     for k, v in tuples:
-        if type(v) is tuple:
-            if k in ret:
-                ret[k] = _merge_dict(ret[k], _tuples_to_dict([v]))
-            else:
-                ret[k] = _tuples_to_dict([v])
+        if type(v) is tuple or type(v) is list:
+            d = _tuples_to_dict(v) if type(v[0]) is tuple else _tuples_to_dict([v])
+            ret[k] = deep_update(ret.get(k, {}), d)
         else:
             ret[k] = v
     return ret
 
 
-def _merge_dict(a, b) -> dict:
-    for (k, v), (k2, v2) in zip(a.items(), b.items()):
-        return {k: _merge_dict(v, v2)} if k == k2 else {k: v, k2: v2}
+def deep_update(d, u):
+    """
+    from https://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
+    :param d: dict
+    :param u: dict
+    :return: merged dict
+    """
+    for k, v in u.items():
+        if isinstance(v, Mapping):
+            d[k] = deep_update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
 
 
 def dump_into_redis(solrhost, redishost, solrfq, solrid):
