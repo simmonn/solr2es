@@ -130,7 +130,7 @@ def create_es_actions(index_name, solr_results, translation_map):
 
 def translate_doc(row, translation_map):
     def translate(key, value):
-        translated_key = retrieve_key_by_regexp(key, translation_map)
+        translated_key = transltate_key(key, translation_map)
         translated_value = value[0] if type(value) is list else value
 
         if '.' in translated_key:
@@ -145,7 +145,7 @@ def translate_doc(row, translation_map):
     return tuples_to_dict(translated)
 
 
-def retrieve_key_by_regexp(key, translation_map):
+def transltate_key(key, translation_map):
     matched_fields = ((k, v.get('name')) for k, v in translation_map.items() if 'name' in v and re.search(k, key))
     try:
         key_regexp, value_regexp = next(matched_fields)
