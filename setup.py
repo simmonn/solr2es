@@ -22,7 +22,8 @@ install_requires = [
     'elasticsearch-async==6.2.0',
     'redis==2.10.6',
     'asyncio_redis==0.15.1',
-    'psycopg2==2.7.6.1'
+    'psycopg2==2.7.6.1',
+    'aiopg==0.15'
 ]
 
 tests_require = [
