@@ -123,14 +123,17 @@ class RedisConsumerAsync(object):
 
 
 def create_es_actions(index_name, solr_results, translation_map):
-    results_ = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row['id']}}, translate_doc(row, translation_map))
+    default_values = {k: v.get('default_value') for k, v in translation_map.items() if 'default_value' in v}
+    translation_names = {k: v.get('name') for k, v in translation_map.items() if 'name' in v}
+
+    results_ = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row['id']}}, translate_doc(row, translation_names, default_values))
                 for row in solr_results]
     return '\n'.join(list(map(lambda d: dumps(d), itertools.chain(*results_))))
 
 
-def translate_doc(row, translation_map):
+def translate_doc(row, translation_names, default_values):
     def translate(key, value):
-        translated_key = translate_key(key, translation_map)
+        translated_key = translate_key(key, translation_names)
         translated_value = value[0] if type(value) is list else value
 
         if '.' in translated_key:
@@ -139,14 +142,14 @@ def translate_doc(row, translation_map):
 
         return translated_key, translated_value
 
-    defaults = {k: v.get('default_value') for k, v in translation_map.items() if 'default_value' in v}
+    defaults = default_values.copy()
     defaults.update(row)
     translated = tuple(translate(k, v) for k, v in defaults.items())
     return tuples_to_dict(translated)
 
 
-def translate_key(key, translation_map):
-    matched_fields = ((k, v.get('name')) for k, v in translation_map.items() if 'name' in v and re.search(k, key))
+def translate_key(key, translation_names):
+    matched_fields = (((k, v) for k, v in translation_names.items() if re.search(k, key)))
     try:
         key_regexp, value_regexp = next(matched_fields)
         return re.sub(key_regexp, value_regexp, key)
