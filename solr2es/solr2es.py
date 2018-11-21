@@ -146,11 +146,12 @@ def translate_doc(row, translation_map):
 
 
 def retrieve_key_by_regexp(key, translation_map):
-    for k, v in {k: v.get('name') for k, v in translation_map.items() if 'name' in v}.items():
-        if re.search(k, key):
-            name = v
-            return name.replace('$1', re.search(k, key).group(1)) if '$1' in name else name
-    return key
+    matched_fields = ((k, v.get('name')) for k, v in translation_map.items() if 'name' in v and re.search(k, key))
+    try:
+        key_regexp, value_regexp = next(matched_fields)
+        return re.sub(key_regexp, value_regexp, key)
+    except StopIteration:
+        return key
 
 
 def tuples_to_dict(tuples):
@@ -159,7 +160,7 @@ def tuples_to_dict(tuples):
         if type(v) is tuple:
             if k in ret:
                 ret[k] = merge_dict(ret[k], tuples_to_dict([v]))
-            else :
+            else:
                 ret[k] = tuples_to_dict([v])
         else:
             ret[k] = v

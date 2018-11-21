@@ -132,7 +132,7 @@ class TestMigration(unittest.TestCase):
         TestMigration.solr.add([{"id": "142", "nested_field1": "content1", "nested_field2": "content2"}])
         self.solr2es.migrate('foo',
                              '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-                             {"nested_(.*)": {"name": "nested.$1"}})
+                             {"nested_(.*)": {"name": "nested.\\1"}})
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual({'field1': 'content1', 'field2': 'content2'}, doc['nested'])
 
