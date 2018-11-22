@@ -11,12 +11,12 @@ CREATE_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS "solr2es_queue" (' \
 INSERT_SQL = 'INSERT INTO solr2es_queue (extract_id, json) VALUES %s'
 
 
-class PostgresqlConsumer(object):
+class PostgresqlQueue(object):
     def __init__(self, connection) -> None:
         self.connection = connection
         self.connection.set_isolation_level(0)
 
-    def consume(self, producer):
+    def push(self, producer):
         self.create_table_if_not_exists()
         for results in producer():
             cursor = self.connection.cursor()
@@ -30,11 +30,11 @@ class PostgresqlConsumer(object):
         cursor.close()
 
 
-class PostgresqlConsumerAsync(object):
+class PostgresqlQueueAsync(object):
     def __init__(self, postgresql) -> None:
         self.postgresql = postgresql
 
-    async def consume(self, producer):
+    async def push(self, producer):
         await self.create_table_if_not_exists()
         async for results in producer():
             async with self.postgresql.acquire() as conn:

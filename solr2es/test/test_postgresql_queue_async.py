@@ -3,10 +3,10 @@ from json import loads
 import asynctest
 from aiopg import create_pool
 
-from solr2es.postgresql_consumer import PostgresqlConsumerAsync
+from solr2es.postgresql_queue import PostgresqlQueueAsync
 
 
-class TestPostgresqlConsumerAsync(asynctest.TestCase):
+class TestPostgresqlQueueAsync(asynctest.TestCase):
 
     async def setUp(self):
         self.postgresql = await create_pool('dbname=solr2es user=test password=test host=postgresql')
@@ -17,12 +17,12 @@ class TestPostgresqlConsumerAsync(asynctest.TestCase):
                 await cur.execute('TRUNCATE solr2es_queue')
         self.postgresql.close()
 
-    async def test_consume(self):
+    async def test_push(self):
         async def producer():
             yield [{'extract_id': 'extract_1', 'foo': 'bar'}, {'extract_id': 'extract_2', 'toot': 'toot'}]
             yield [{'extract_id': 'extract_3', 'baz': 'qux'}]
 
-        await PostgresqlConsumerAsync(self.postgresql).consume(producer)
+        await PostgresqlQueueAsync(self.postgresql).push(producer)
 
         async with self.postgresql.acquire() as conn:
             async with conn.cursor() as cur:

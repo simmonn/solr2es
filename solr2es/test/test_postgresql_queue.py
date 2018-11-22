@@ -3,10 +3,10 @@ from json import loads
 import psycopg2
 import unittest
 
-from solr2es.postgresql_consumer import PostgresqlConsumer
+from solr2es.postgresql_queue import PostgresqlQueue
 
 
-class TestPostgresqlConsumer(unittest.TestCase):
+class TestPostgresqlQueue(unittest.TestCase):
 
     def setUp(self):
         self.connection = psycopg2.connect("dbname='solr2es' user='test' host='postgresql' password='test'")
@@ -15,12 +15,12 @@ class TestPostgresqlConsumer(unittest.TestCase):
         self.connection.cursor().execute('truncate solr2es_queue')
         self.connection.close()
 
-    def test_consume(self):
+    def test_push(self):
         def producer():
             yield [{'extract_id': 'extract_1', 'foo': 'bar'}, {'extract_id': 'extract_2', 'toot': 'toot'}]
             yield [{'extract_id': 'extract_3', 'baz': 'qux'}]
 
-        PostgresqlConsumer(self.connection).consume(producer)
+        PostgresqlQueue(self.connection).push(producer)
 
         cur = self.connection.cursor()
         cur.execute('SELECT extract_id, json, done FROM solr2es_queue ORDER BY extract_id')
