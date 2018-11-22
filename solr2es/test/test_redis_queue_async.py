@@ -15,12 +15,12 @@ class TestRedisQueue(asynctest.TestCase):
         await self.redis.delete(['solr2es:queue'])
         self.redis.close()
 
-    async def test_consume(self):
+    async def test_push_loop(self):
         async def producer():
             yield [{'foo': 'bar'}, {'toot': 'toot'}]
             yield [{'baz': 'qux'}]
 
-        await RedisQueueAsync(self.redis).push(producer)
+        await RedisQueueAsync(self.redis).push_loop(producer)
 
         self.assertEqual(3, await self.redis.llen('solr2es:queue'))
         self.assertEqual({'baz': 'qux'}, loads(await self.redis.lpop('solr2es:queue')))

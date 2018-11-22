@@ -19,7 +19,7 @@ class TestRedisQueue(unittest.TestCase):
             yield [{'foo': 'bar'}, {'toot': 'toot'}]
             yield [{'baz': 'qux'}]
 
-        RedisQueue(self.redis).push(producer)
+        RedisQueue(self.redis).push_loop(producer)
 
         self.assertEqual(3, self.redis.llen('solr2es:queue'))
         self.assertEqual({'baz': 'qux'}, loads(self.redis.lpop('solr2es:queue')))

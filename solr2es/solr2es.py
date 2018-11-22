@@ -169,8 +169,8 @@ def deep_update(d, u):
 
 def dump_into_redis(solrhost, redishost, solrfq, solrid):
     LOGGER.info('dump from solr (%s) into redis (host=%s) with filter query (%s)', solrhost, redishost, solrfq)
-    RedisQueue(redis.Redis(host=redishost)).push(partial(Solr2Es(Solr(solrhost, always_commit=True), None).produce_results,
-                                                            solr_filter_query=solrfq, sort_field=solrid))
+    RedisQueue(redis.Redis(host=redishost)).push_loop(partial(Solr2Es(Solr(solrhost, always_commit=True), None).produce_results,
+                                                              solr_filter_query=solrfq, sort_field=solrid))
 
 
 def resume_from_redis(redishost, eshost, name):
@@ -186,7 +186,7 @@ async def aiodump_into_redis(solrhost, redishost, solrfq, solrid):
     LOGGER.info('asyncio dump from solr (%s) into redis (host=%s) with filter query (%s)', solrhost, redishost, solrfq)
     async with aiohttp.ClientSession() as session:
         await RedisQueueAsync(await asyncio_redis.Pool.create(host=redishost, port=6379, poolsize=10)).\
-            push(partial(Solr2EsAsync(session, None, solrhost).produce_results, solr_filter_query=solrfq, sort_field=solrid))
+            push_loop(partial(Solr2EsAsync(session, None, solrhost).produce_results, solr_filter_query=solrfq, sort_field=solrid))
 
 
 async def aioresume_from_redis(redishost, eshost, name):
