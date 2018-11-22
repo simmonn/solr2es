@@ -137,7 +137,12 @@ def _translate_key(key, translation_names) -> str:
     matched_fields = (((k, v) for k, v in translation_names.items() if re.search(k, key)))
     try:
         key_regexp, value_regexp = next(matched_fields)
-        return re.sub(key_regexp, value_regexp, key)
+        try:
+            next(matched_fields)
+            LOGGER.error('Too many doc fields matching the translation_names condition : %s', key_regexp)
+            raise Exception('Too many doc fields matching the translation_names condition : %s' % key_regexp)
+        except StopIteration:
+            return re.sub(key_regexp, value_regexp, key)
     except StopIteration:
         return key
 

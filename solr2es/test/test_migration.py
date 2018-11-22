@@ -70,7 +70,9 @@ class TestMigration(unittest.TestCase):
     def test_migrate_with_es_mapping(self):
         mapping = '{"mappings": {"doc": {"properties": {"my_field": {"type": "keyword"}}}}}'
         self.solr2es.migrate('foo', mapping=mapping)
-        self.assertEqual({'my_field': {'type': 'keyword'}}, self.es.indices.get_field_mapping(index=['foo'], fields=['my_field'])['foo']['mappings']['doc']['my_field']['mapping'])
+        self.assertEqual({'my_field': {'type': 'keyword'}},
+                         self.es.indices.get_field_mapping(index=['foo'], fields=['my_field'])['foo']['mappings'][
+                             'doc']['my_field']['mapping'])
 
     def test_migrate_with_es_mapping_with_existing_index(self):
         self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"my_field": {"type": "keyword"}}}}}')
@@ -90,7 +92,8 @@ class TestMigration(unittest.TestCase):
         TestMigration.solr.add([{"id": '123', "my_int": 12}])
 
         self.assertEqual(0, self.solr2es.migrate('foo',
-                                                 '{"mappings": {"doc": {"properties": {"my_int": {"type": "date", "format": "date_time"}}}}}'))
+                                                 '{"mappings": {"doc": {"properties": {"my_int":'
+                                                 '{"type": "date", "format": "date_time"}}}}}'))
         self.assertFalse(self.es.exists(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="123"))
 
     def test_migrate_different_fields_with_translation_map(self):
@@ -124,7 +127,7 @@ class TestMigration(unittest.TestCase):
 
         self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
                              {"nested_field1": {"name": "nested.a.b"}, "nested_field2": {"name": "nested.a.c"}})
-    
+
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual({'a': {'b': 'content1', 'c': 'content2'}}, doc['nested'])
 
@@ -137,6 +140,18 @@ class TestMigration(unittest.TestCase):
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual({'field1': 'content1', 'field2': 'content2'}, doc['nested'])
+
+    def test_migrate_with_multiple_matching_fields_against_mapping(self):
+        requests.post('http://solr:8983/solr/test_core/schema', headers={'Content-Type': 'application/json'},
+                      data='{ "add-field":{ "name":"flag_field_test", "type":"string", "stored":true }}')
+        TestMigration.solr.add([{"id": "142", "flag_field_test": "content1"}])
+
+        with assert_raises(Exception) as e:
+            self.solr2es.migrate('foo',
+                                 '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
+                                 {"flag_field_(.*)": {"name": "flag1_\\1"}, "flag_(.*)": {"name": "flag2_\\1"}})
+        self.assertTrue('Too many doc fields matching the translation_names condition'
+                        in str(e.exception))
 
     def test_migrate_with_default_field_value_on_unexisting_field(self):
         TestMigration.solr.add([{"id": "142"}])
@@ -151,7 +166,8 @@ class TestMigration(unittest.TestCase):
         TestMigration.solr.add([{"id": "142"}])
 
         self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-                             {"new_field1": {'default_value': 'john doe'}, 'new_field2': {'default_value': 'bob smith'}})
+                             {"new_field1": {'default_value': 'john doe'},
+                              'new_field2': {'default_value': 'bob smith'}})
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual('john doe', doc['new_field1'])
@@ -179,7 +195,8 @@ class TestTranslateDoc(unittest.TestCase):
 
     def test_with_sibling_nested_fields_in_depth(self):
         self.assertEqual({'a': {'b': {'c': {'d': 'value1'}, 'e': 'value2'}}},
-                         translate_doc({'a_b_c_d': 'value1', 'a_b_e': 'value2'}, {'a_b_c_d': 'a.b.c.d', 'a_b_e': 'a.b.e'}, {}))
+                         translate_doc({'a_b_c_d': 'value1', 'a_b_e': 'value2'},
+                                       {'a_b_c_d': 'a.b.c.d', 'a_b_e': 'a.b.e'}, {}))
 
 
 class TestTuplesToDict(unittest.TestCase):
@@ -194,10 +211,12 @@ class TestTuplesToDict(unittest.TestCase):
         self.assertEqual({'a': {'b': 'c'}}, _tuples_to_dict([('a', ('b', 'c'))]))
 
     def test_with_nested_two_values(self):
-        self.assertEqual({'a': {'b': 'content1', 'c': 'content2'}}, _tuples_to_dict([('a', ('b', 'content1')), ('a', ('c', 'content2'))]))
+        self.assertEqual({'a': {'b': 'content1', 'c': 'content2'}},
+                         _tuples_to_dict([('a', ('b', 'content1')), ('a', ('c', 'content2'))]))
 
     def test_with_two_nested_levels_homogeneous(self):
-        self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2'}}}, _tuples_to_dict([('nested', ('a', ('b', 'content1'))), ('nested', ('a', ('c', 'content2')))]))
+        self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2'}}},
+                         _tuples_to_dict([('nested', ('a', ('b', 'content1'))), ('nested', ('a', ('c', 'content2')))]))
 
     def test_with_two_nested_levels_heterogeneous(self):
         self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2', 'd': 'content3'}}},
