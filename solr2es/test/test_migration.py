@@ -27,7 +27,7 @@ class TestMigration(unittest.TestCase):
         self.solr2es = Solr2Es(TestMigration.solr, TestMigration.es, refresh=True)
 
     def tearDown(self):
-        #TestMigration.solr.delete(q='*:*')
+        TestMigration.solr.delete(q='*:*')
         TestMigration.es.indices.delete(index='foo')
 
     def test_migrate_zero_docs(self):
