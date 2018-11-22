@@ -16,6 +16,8 @@ from elasticsearch import Elasticsearch
 from elasticsearch_async import AsyncElasticsearch
 from pysolr import Solr, SolrCoreAdmin
 
+from solr2es.redis_queue import RedisQueueAsync, RedisQueue
+
 logging.basicConfig(format='%(asctime)s [%(name)s][%(process)d] %(levelname)s: %(message)s')
 LOGGER = logging.getLogger('solr2es')
 LOGGER.setLevel(logging.INFO)
@@ -105,24 +107,6 @@ class Solr2EsAsync(object):
         LOGGER.info('processed %s documents', nb_results)
 
 
-class RedisConsumer(object):
-    def __init__(self, redis) -> None:
-        self.redis = redis
-
-    def consume(self, producer):
-        for results in producer():
-            self.redis.lpush('solr2es:queue', *map(dumps, results))
-
-
-class RedisConsumerAsync(object):
-    def __init__(self, redis) -> None:
-        self.redis = redis
-
-    async def consume(self, producer):
-        async for results in producer():
-            await self.redis.lpush('solr2es:queue', list(map(dumps, results)))
-
-
 def create_es_actions(index_name, solr_results, translation_map) -> str:
     default_values = {k: v['default_value'] for k, v in translation_map.items() if 'default_value' in v}
     translation_names = {k: v['name'] for k, v in translation_map.items() if 'name' in v}
@@ -185,8 +169,8 @@ def deep_update(d, u):
 
 def dump_into_redis(solrhost, redishost, solrfq, solrid):
     LOGGER.info('dump from solr (%s) into redis (host=%s) with filter query (%s)', solrhost, redishost, solrfq)
-    RedisConsumer(redis.Redis(host=redishost)).consume(partial(Solr2Es(Solr(solrhost, always_commit=True), None).produce_results,
-                                                               solr_filter_query=solrfq, sort_field=solrid))
+    RedisQueue(redis.Redis(host=redishost)).push(partial(Solr2Es(Solr(solrhost, always_commit=True), None).produce_results,
+                                                            solr_filter_query=solrfq, sort_field=solrid))
 
 
 def resume_from_redis(redishost, eshost, name):
@@ -201,8 +185,8 @@ def migrate(solrhost, eshost, index_name, solrfq, solrid):
 async def aiodump_into_redis(solrhost, redishost, solrfq, solrid):
     LOGGER.info('asyncio dump from solr (%s) into redis (host=%s) with filter query (%s)', solrhost, redishost, solrfq)
     async with aiohttp.ClientSession() as session:
-        await RedisConsumerAsync(await asyncio_redis.Pool.create(host=redishost, port=6379, poolsize=10)).\
-            consume(partial(Solr2EsAsync(session, None, solrhost).produce_results, solr_filter_query=solrfq, sort_field=solrid))
+        await RedisQueueAsync(await asyncio_redis.Pool.create(host=redishost, port=6379, poolsize=10)).\
+            push(partial(Solr2EsAsync(session, None, solrhost).produce_results, solr_filter_query=solrfq, sort_field=solrid))
 
 
 async def aioresume_from_redis(redishost, eshost, name):

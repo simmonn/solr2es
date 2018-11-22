@@ -3,10 +3,10 @@ from json import loads
 import asyncio_redis
 import asynctest
 
-from solr2es.solr2es import RedisConsumerAsync
+from solr2es.redis_queue import RedisQueueAsync
 
 
-class TestRedisConsumer(asynctest.TestCase):
+class TestRedisQueue(asynctest.TestCase):
 
     async def setUp(self):
         self.redis = await asyncio_redis.Pool.create(host='redis', port=6379, poolsize=10)
@@ -20,7 +20,7 @@ class TestRedisConsumer(asynctest.TestCase):
             yield [{'foo': 'bar'}, {'toot': 'toot'}]
             yield [{'baz': 'qux'}]
 
-        await RedisConsumerAsync(self.redis).consume(producer)
+        await RedisQueueAsync(self.redis).push(producer)
 
         self.assertEqual(3, await self.redis.llen('solr2es:queue'))
         self.assertEqual({'baz': 'qux'}, loads(await self.redis.lpop('solr2es:queue')))
