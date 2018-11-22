@@ -20,7 +20,7 @@ class TestPostgresqlQueue(unittest.TestCase):
             yield [{'extract_id': 'extract_1', 'foo': 'bar'}, {'extract_id': 'extract_2', 'toot': 'toot'}]
             yield [{'extract_id': 'extract_3', 'baz': 'qux'}]
 
-        PostgresqlQueue(self.connection).push(producer)
+        PostgresqlQueue(self.connection).push_loop(producer)
 
         cur = self.connection.cursor()
         cur.execute('SELECT extract_id, json, done FROM solr2es_queue ORDER BY extract_id')

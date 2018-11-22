@@ -22,7 +22,7 @@ class TestPostgresqlQueueAsync(asynctest.TestCase):
             yield [{'extract_id': 'extract_1', 'foo': 'bar'}, {'extract_id': 'extract_2', 'toot': 'toot'}]
             yield [{'extract_id': 'extract_3', 'baz': 'qux'}]
 
-        await PostgresqlQueueAsync(self.postgresql).push(producer)
+        await PostgresqlQueueAsync(self.postgresql).push_loop(producer)
 
         async with self.postgresql.acquire() as conn:
             async with conn.cursor() as cur:

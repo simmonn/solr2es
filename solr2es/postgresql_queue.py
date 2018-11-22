@@ -16,13 +16,16 @@ class PostgresqlQueue(object):
         self.connection = connection
         self.connection.set_isolation_level(0)
 
-    def push(self, producer):
+    def push_loop(self, producer):
         self.create_table_if_not_exists()
         for results in producer():
-            cursor = self.connection.cursor()
-            values = ((r['extract_id'], dumps(r)) for r in results)
-            execute_values(cursor, INSERT_SQL, values)
-            cursor.close()
+            self.push(results)
+
+    def push(self, value_list):
+        cursor = self.connection.cursor()
+        values = ((r['extract_id'], dumps(r)) for r in value_list)
+        execute_values(cursor, INSERT_SQL, values)
+        cursor.close()
 
     def create_table_if_not_exists(self):
         cursor = self.connection.cursor()
@@ -34,13 +37,16 @@ class PostgresqlQueueAsync(object):
     def __init__(self, postgresql) -> None:
         self.postgresql = postgresql
 
-    async def push(self, producer):
+    async def push_loop(self, producer):
         await self.create_table_if_not_exists()
         async for results in producer():
-            async with self.postgresql.acquire() as conn:
-                async with conn.cursor() as cur:
-                    values = ('(%r, %r)' % (r['extract_id'], dumps(r)) for r in results)
-                    await cur.execute(INSERT_SQL % ','.join(values))
+            await self.push(results)
+
+    async def push(self, value_list):
+        async with self.postgresql.acquire() as conn:
+            async with conn.cursor() as cur:
+                values = ('(%r, %r)' % (r['extract_id'], dumps(r)) for r in value_list)
+                await cur.execute(INSERT_SQL % ','.join(values))
 
     async def create_table_if_not_exists(self):
         async with self.postgresql.acquire() as conn:
