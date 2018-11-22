@@ -3,16 +3,17 @@ from json import dumps
 from psycopg2.extras import execute_values
 
 CREATE_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS "solr2es_queue" (' \
-                   'id serial primary key,' \
-                   'extract_id varchar(64) not null UNIQUE,' \
+                   'uid serial primary key,' \
+                   'id varchar(64) not null UNIQUE,' \
                    'json text not null,' \
                    'done boolean default false )'
 
-INSERT_SQL = 'INSERT INTO solr2es_queue (extract_id, json) VALUES %s'
+INSERT_SQL = 'INSERT INTO solr2es_queue (id, json) VALUES %s'
 
 
 class PostgresqlQueue(object):
-    def __init__(self, connection) -> None:
+    def __init__(self, connection, unique_id='id') -> None:
+        self.unique_id = unique_id
         self.connection = connection
         self.connection.set_isolation_level(0)
 
@@ -23,7 +24,7 @@ class PostgresqlQueue(object):
 
     def push(self, value_list):
         cursor = self.connection.cursor()
-        values = ((r['extract_id'], dumps(r)) for r in value_list)
+        values = ((r[self.unique_id], dumps(r)) for r in value_list)
         execute_values(cursor, INSERT_SQL, values)
         cursor.close()
 
@@ -34,7 +35,8 @@ class PostgresqlQueue(object):
 
 
 class PostgresqlQueueAsync(object):
-    def __init__(self, postgresql) -> None:
+    def __init__(self, postgresql, unique_id='id') -> None:
+        self.unique_id = unique_id
         self.postgresql = postgresql
 
     async def push_loop(self, producer):
@@ -45,7 +47,7 @@ class PostgresqlQueueAsync(object):
     async def push(self, value_list):
         async with self.postgresql.acquire() as conn:
             async with conn.cursor() as cur:
-                values = ('(%r, %r)' % (r['extract_id'], dumps(r)) for r in value_list)
+                values = ('(%r, %r)' % (r[self.unique_id], dumps(r)) for r in value_list)
                 await cur.execute(INSERT_SQL % ','.join(values))
 
     async def create_table_if_not_exists(self):

@@ -201,9 +201,9 @@ async def aiodump_into_redis(solrhost, redishost, solrfq, solrid):
 
 
 async def aiodump_into_pgsql(solrhost, pgsqldsn, solrfq, solrid):
-    LOGGER.info('asyncio dump from solr (%s) into postgresql (dsn=%s) with filter query (%s)', solrhost, redishost, solrfq)
+    LOGGER.info('asyncio dump from solr (%s) into postgresql (dsn=%s) with filter query (%s)', solrhost, pgsqldsn, solrfq)
     async with aiohttp.ClientSession() as session:
-        await PostgresqlQueueAsync(await create_pool(pgsqldsn)).\
+        await PostgresqlQueueAsync(await create_pool(pgsqldsn), unique_id=solrid).\
             push_loop(partial(Solr2EsAsync(session, None, solrhost).produce_results, solr_filter_query=solrfq, sort_field=solrid))
 
 
