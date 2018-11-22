@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import asyncio
 import getopt
 import logging
@@ -12,10 +11,12 @@ from json import loads, dumps
 import aiohttp
 import asyncio_redis
 import redis
+from aiopg import create_pool
 from elasticsearch import Elasticsearch
 from elasticsearch_async import AsyncElasticsearch
 from pysolr import Solr, SolrCoreAdmin
 
+from solr2es.postgresql_queue import PostgresqlQueueAsync, PostgresqlQueue
 from solr2es.redis_queue import RedisQueueAsync, RedisQueue
 
 logging.basicConfig(format='%(asctime)s [%(name)s][%(process)d] %(levelname)s: %(message)s')
@@ -173,8 +174,18 @@ def dump_into_redis(solrhost, redishost, solrfq, solrid):
                                                               solr_filter_query=solrfq, sort_field=solrid))
 
 
+def dump_into_pgsql(solrhost, pgsqldsn, solrfq, solrid):
+    LOGGER.info('dump from solr (%s) into postgresql (dsn=%s) with filter query (%s)', solrhost, pgsqldsn, solrfq)
+    PostgresqlQueue(None).push_loop(partial(Solr2Es(Solr(solrhost, always_commit=True), None).produce_results,
+                                                         solr_filter_query=solrfq, sort_field=solrid))
+
+
 def resume_from_redis(redishost, eshost, name):
     LOGGER.info('resume from redis (host=%s) to elasticsearch (%s) index %s', redishost, eshost, name)
+
+
+def resume_from_postgresql(pgsqldsn, eshost, name):
+    LOGGER.info('resume from postgresql (dsn=%s) to elasticsearch (%s) index %s', pgsqldsn, eshost, name)
 
 
 def migrate(solrhost, eshost, index_name, solrfq, solrid):
@@ -189,8 +200,19 @@ async def aiodump_into_redis(solrhost, redishost, solrfq, solrid):
             push_loop(partial(Solr2EsAsync(session, None, solrhost).produce_results, solr_filter_query=solrfq, sort_field=solrid))
 
 
+async def aiodump_into_pgsql(solrhost, pgsqldsn, solrfq, solrid):
+    LOGGER.info('asyncio dump from solr (%s) into postgresql (dsn=%s) with filter query (%s)', solrhost, redishost, solrfq)
+    async with aiohttp.ClientSession() as session:
+        await PostgresqlQueueAsync(await create_pool(pgsqldsn)).\
+            push_loop(partial(Solr2EsAsync(session, None, solrhost).produce_results, solr_filter_query=solrfq, sort_field=solrid))
+
+
 async def aioresume_from_redis(redishost, eshost, name):
     LOGGER.info('asyncio resume from redis (host=%s) to elasticsearch (%s) index %s', redishost, eshost, name)
+
+
+async def aioresume_from_pgsql(pgsqldsn, eshost, name):
+    LOGGER.info('asyncio resume from postgresql (dsn=%s) to elasticsearch (%s) index %s', pgsqldsn, eshost, name)
 
 
 async def aiomigrate(solrhost, eshost, name, solrfq, solrid):
@@ -205,7 +227,7 @@ def usage(argv):
     print('Usage: %s action' % argv[0])
     print('\t-m|--migrate: migrate solr to elasticsearch')
     print('\t-r|--resume: resume from redis')
-    print('\t-d|--dump: dump into redis')
+    print('\t-d|--dump: dump into redis (default) or posgresql (if dsn given) queue')
     print('\t-t|--test: test solr/elasticsearch connections')
     print('\t-a|--async: use python 3 asyncio')
     print('\t--solrhost: solr host (default \'solr\')')
@@ -215,12 +237,14 @@ def usage(argv):
     print('\t--core: core name (default \'solr2es\')')
     print('\t--eshost: elasticsearch url (default \'elasticsearch\')')
     print('\t--redishost: redis host (default \'redis\')')
+    print('\t--postgresqldsn: postgresql Data Source Name')
+    print('\t  (ex \'dbname=solr2es user=test password=test host=postgresql\' default None)')
 
 
-if __name__ == '__main__':
+def main():
     options, remainder = getopt.gnu_getopt(sys.argv[1:], 'hmdtra',
             ['help', 'migrate', 'dump', 'test', 'resume', 'async', 'solrhost=', 'eshost=',
-             'redishost=', 'index=', 'core=', 'solrfq=', 'solrid='])
+             'redishost=', 'index=', 'core=', 'solrfq=', 'solrid=', 'postgresqldsn='])
     if len(sys.argv) == 1:
         usage(sys.argv)
         sys.exit()
@@ -232,6 +256,7 @@ if __name__ == '__main__':
     solrid = 'id'
     eshost = 'elasticsearch'
     redishost = 'redis'
+    postgresqldsn = None
     core_name = 'solr2es'
     index_name = None
     action = 'migrate'
@@ -255,6 +280,9 @@ if __name__ == '__main__':
         if opt == '--redishost':
             redishost = arg
 
+        if opt == '--postgresqldsn':
+            postgresqldsn = arg
+
         if opt == '--eshost':
             eshost = arg
 
@@ -265,9 +293,9 @@ if __name__ == '__main__':
             core_name = arg
 
         if opt in ('-d', '--dump'):
-            action = 'dump'
+            action = 'dump' if postgresqldsn is None else 'dump_pgsql'
         elif opt in ('-r', '--resume'):
-            action = 'resume'
+            action = 'resume' if postgresqldsn is None else 'resume_pgsql'
         elif opt in ('-m', '--migrate'):
             action = 'migrate'
         elif opt in ('-t', '--test'):
@@ -286,7 +314,17 @@ if __name__ == '__main__':
             else dump_into_redis(solrurl, redishost, solrfq, solrid)
     elif action == 'resume':
         aioloop.run_until_complete(aioresume_from_redis(redishost, eshost, index_name)) if with_asyncio else resume_from_redis(redishost, eshost, index_name)
+    elif action == 'dump_pgsql':
+        aioloop.run_until_complete(aiodump_into_pgsql(solrurl, postgresqldsn, solrfq, solrid)) if with_asyncio \
+            else dump_into_pgsql(solrurl, postgresqldsn, solrfq, solrid)
+    elif action == 'resume_pgsql':
+        aioloop.run_until_complete(
+            aioresume_from_pgsql(postgresqldsn, eshost, index_name)) if with_asyncio else resume_from_postgresql(postgresqldsn, eshost, index_name)
     elif action == 'test':
         solr_status = loads(SolrCoreAdmin('http://%s:8983/solr/admin/cores?action=STATUS&core=%s' % (solrhost, core_name)).status())
         LOGGER.info('Elasticsearch ping on %s is %s', eshost, 'OK' if Elasticsearch(host=eshost).ping() else 'KO')
         LOGGER.info('Solr status on %s is %s', solrurl, 'OK' if solr_status['status'][core_name] else 'KO')
+
+
+if __name__ == "__main__":
+    main()

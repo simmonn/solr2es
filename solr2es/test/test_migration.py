@@ -5,7 +5,7 @@ from elasticsearch import Elasticsearch
 from nose.tools import assert_raises
 from pysolr import Solr, SolrError
 
-from solr2es.solr2es import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc, _tuples_to_dict
+from solr2es.__main__ import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc, _tuples_to_dict
 
 
 class TestMigration(unittest.TestCase):

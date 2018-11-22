@@ -1,7 +1,7 @@
 import os
 import sys
 
-from setuptools import setup, find_packages
+from setuptools import setup
 
 here = os.path.abspath(os.path.dirname(__file__))
 py_version = sys.version_info[:2]
@@ -22,7 +22,7 @@ install_requires = [
     'elasticsearch-async==6.2.0',
     'redis==2.10.6',
     'asyncio_redis==0.15.1',
-    'psycopg2==2.7.6.1',
+    'psycopg2-binary==2.7.6.1',
     'aiopg==0.15'
 ]
 
@@ -45,11 +45,15 @@ setup(
     license='GPL-3.0',
     url='https://github.com/ICIJ/solr2es',
     keywords='migration search engine solr elasticsearch',
-    packages=find_packages(),
+    packages=['solr2es'],
     include_package_data=True,
-    scripts=['solr2es/solr2es.py'],
     zip_safe=False,
     test_suite="nose.collector",  
     install_requires=install_requires,
     tests_require=tests_require,
+    entry_points={
+          'console_scripts': [
+              'solr2es = solr2es.__main__:main'
+          ]
+    },
 )

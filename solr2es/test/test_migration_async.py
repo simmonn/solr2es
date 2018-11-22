@@ -3,7 +3,7 @@ import asynctest
 from elasticsearch_async import AsyncElasticsearch
 
 
-from solr2es.solr2es import DEFAULT_ES_DOC_TYPE, Solr2EsAsync
+from solr2es.__main__ import DEFAULT_ES_DOC_TYPE, Solr2EsAsync
 
 
 class TestMigrationAsync(asynctest.TestCase):
