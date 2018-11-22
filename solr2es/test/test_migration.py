@@ -184,6 +184,9 @@ class TestMigration(unittest.TestCase):
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual('content1', doc['field1'])
 
+    def test_migrate_with_multiple_fields(self):
+
+
 
 class TestTranslateDoc(unittest.TestCase):
     def test_with_nested_field(self):
