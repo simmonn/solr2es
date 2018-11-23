@@ -107,6 +107,20 @@ class Solr2EsAsync(object):
                     cursor_ended = True
         LOGGER.info('processed %s documents', nb_results)
 
+    async def resume(self, postgresql_queue, index_name, mapping=None, translation_map=None):
+        translation_dict = dict() if translation_map is None else translation_map
+        if not await self.aes.indices.exists([index_name]):
+            await self.aes.indices.create(index_name, body=mapping)
+
+        nb_results = 0
+        results = await postgresql_queue.pop()
+        while results:
+            actions = create_es_actions(index_name, results, translation_dict)
+            await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
+            nb_results += len(results)
+            results = await postgresql_queue.pop()
+        return nb_results
+
 
 def create_es_actions(index_name, solr_results, translation_map) -> str:
     default_values = {k: v['default_value'] for k, v in translation_map.items() if 'default_value' in v}
