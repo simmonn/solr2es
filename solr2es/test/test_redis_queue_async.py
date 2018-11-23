@@ -6,7 +6,7 @@ import asynctest
 from solr2es.redis_queue import RedisQueueAsync
 
 
-class TestRedisQueue(asynctest.TestCase):
+class TestRedisQueueAsync(asynctest.TestCase):
 
     async def setUp(self):
         self.redis = await asyncio_redis.Pool.create(host='redis', port=6379, poolsize=10)

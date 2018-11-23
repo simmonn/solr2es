@@ -1,4 +1,4 @@
-from json import dumps
+from json import dumps, loads
 
 from psycopg2.extras import execute_values
 
@@ -44,7 +44,7 @@ class PostgresqlQueueAsync(object):
         async for results in producer():
             await self.push(results)
 
-    async def push(self, value_list):
+    async def push(self, value_list) -> None:
         async with self.postgresql.acquire() as conn:
             async with conn.cursor() as cur:
                 values = ('(%r, %r)' % (r[self.unique_id], dumps(r)) for r in value_list)
@@ -54,3 +54,12 @@ class PostgresqlQueueAsync(object):
         async with self.postgresql.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(CREATE_TABLE_SQL)
+
+    async def pop(self) -> list:
+        async with self.postgresql.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    'UPDATE solr2es_queue SET done = \'t\' WHERE uid IN ('
+                    'SELECT uid FROM solr2es_queue WHERE done = \'f\' LIMIT 10) RETURNING json'
+                )
+                return list(map(lambda row: loads(row[0]), await cur.fetchall()))
