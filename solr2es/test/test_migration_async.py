@@ -16,7 +16,7 @@ class TestMigrationAsync(asynctest.TestCase):
     async def tearDown(self):
         async with aiohttp.ClientSession() as session:
             await session.post(self.solr_url + '/update/?commit=true', data='<delete><query>*:*</query></delete>', headers={'Content-type': 'text/xml; charset=utf-8'})
-        await self.aes.delete_by_query(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, body='{"query": {"match_all": {}}}', conflicts='proceed', refresh=True)
+        await self.aes.indices.delete(index='foo')
         await self.aes.transport.close()
 
     async def test_migrate_twelve_docs(self):
@@ -28,6 +28,14 @@ class TestMigrationAsync(asynctest.TestCase):
             solr2es_async = Solr2EsAsync(session, self.aes, self.solr_url, True)
             self.assertEqual(12, await solr2es_async.migrate('foo'))
 
+    async def test_migrate_with_es_mapping(self):
+        async with aiohttp.ClientSession() as session:
+            mapping = '{"mappings": {"doc": {"properties": {"my_field": {"type": "keyword"}}}}}'
+            await Solr2EsAsync(session, self.aes, self.solr_url, True).migrate('foo', mapping=mapping)
+            self.assertEqual({'my_field': {'type': 'keyword'}},
+                             (await self.aes.indices.get_field_mapping(index=['foo'], fields=['my_field']))
+                             ['foo']['mappings']['doc']['my_field']['mapping'])
+
 
 class TestResumeAsync(asynctest.TestCase):
 
@@ -36,8 +44,7 @@ class TestResumeAsync(asynctest.TestCase):
         self.postgresql = await create_pool('dbname=solr2es user=test password=test host=postgresql')
 
     async def tearDown(self):
-        await self.aes.delete_by_query(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, body='{"query": {"match_all": {}}}',
-                                       conflicts='proceed', refresh=True)
+        await self.aes.indices.delete(index='test')
         await self.aes.transport.close()
         async with self.postgresql.acquire() as conn:
             async with conn.cursor() as cur:

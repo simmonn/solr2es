@@ -77,10 +77,14 @@ class Solr2EsAsync(object):
         self.aes = aes
         self.refresh = refresh
 
-    async def migrate(self, index_name, solr_filter_query='*', sort_field='id') -> int:
+    async def migrate(self, index_name, mapping=None, translation_map=None, solr_filter_query='*', sort_field='id') -> int:
+        translation_dict = dict() if translation_map is None else translation_map
+        if not await self.aes.indices.exists([index_name]):
+            await self.aes.indices.create(index_name, body=mapping)
+
         nb_results = 0
         async for results in self.produce_results(solr_filter_query=solr_filter_query, sort_field=sort_field):
-            actions = create_es_actions(index_name, results, {})
+            actions = create_es_actions(index_name, results, translation_dict)
             await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
         return nb_results
