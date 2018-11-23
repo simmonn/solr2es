@@ -1,3 +1,4 @@
+from asyncio import ensure_future, wait_for
 from json import loads
 
 import asynctest
@@ -35,10 +36,21 @@ class TestPostgresqlQueueAsync(asynctest.TestCase):
                 self.assertEqual({'id': 'extract_2', 'toot': 'toot'}, loads(results[1][1]))
                 self.assertEqual({'id': 'extract_3', 'baz': 'qux'}, loads(results[2][1]))
 
-    async def test_push_pop_not_event_based(self):
+    async def test_push_pop_sequential(self):
         docs = [{'id': 'id1', 'foo': 'bar'}, {'id': 'id2', 'baz': 'qux'}]
 
         await self.pgsql_queue.push(docs)
 
         self.assertEqual(docs, await self.pgsql_queue.pop())
+
+    async def test_push_pop_blocking(self):
+        docs = [{'id': 'id1', 'foo': 'bar'}, {'id': 'id2', 'baz': 'qux'}]
+        pop_future = ensure_future(self.pgsql_queue.pop())
+        await self.pgsql_queue.push(docs)
+
+        results = await wait_for(pop_future, 1)
+
+        self.assertEqual(docs, results)
+
+    async def test_pop_timeout(self):
         self.assertEqual([], await self.pgsql_queue.pop())

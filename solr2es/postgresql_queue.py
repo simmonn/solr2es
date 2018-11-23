@@ -1,6 +1,10 @@
+from asyncio import ensure_future, wait_for, futures
 from json import dumps, loads
 
 from psycopg2.extras import execute_values
+
+POP_DOCS_SQL = 'UPDATE solr2es_queue SET done = \'t\' WHERE uid IN (' \
+                 'SELECT uid FROM solr2es_queue WHERE done = \'f\' LIMIT 10) RETURNING json'
 
 CREATE_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS "solr2es_queue" (' \
                    'uid serial primary key,' \
@@ -49,17 +53,23 @@ class PostgresqlQueueAsync(object):
             async with conn.cursor() as cur:
                 values = ('(%r, %r)' % (r[self.unique_id], dumps(r)) for r in value_list)
                 await cur.execute(INSERT_SQL % ','.join(values))
+                await cur.execute('NOTIFY solr2es, \'notify\'')
 
     async def create_table_if_not_exists(self):
         async with self.postgresql.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(CREATE_TABLE_SQL)
 
-    async def pop(self) -> list:
+    async def pop(self, timeout=1) -> list:
         async with self.postgresql.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(
-                    'UPDATE solr2es_queue SET done = \'t\' WHERE uid IN ('
-                    'SELECT uid FROM solr2es_queue WHERE done = \'f\' LIMIT 10) RETURNING json'
-                )
-                return list(map(lambda row: loads(row[0]), await cur.fetchall()))
+                await cur.execute("LISTEN solr2es")
+                while True:
+                    await cur.execute(POP_DOCS_SQL)
+                    if cur.rowcount:
+                        return list(map(lambda row: loads(row[0]), await cur.fetchall()))
+                    notification = ensure_future(conn.notifies.get())
+                    try:
+                        await wait_for(notification, timeout)
+                    except futures.TimeoutError:
+                        return []
