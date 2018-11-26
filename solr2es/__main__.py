@@ -143,7 +143,7 @@ def create_es_actions(index_name, solr_results, translation_map) -> str:
 
 def _get_id_field_name(translation_names):
     set_id = {k for k, v in translation_names.items() if v == '_id'}
-    id_key = set_id.pop() if len(set_id) > 0 else '_id'
+    id_key = set_id.pop() if len(set_id) > 0 else 'id'
     return id_key
 
 
@@ -155,6 +155,8 @@ def translate_doc(row, translation_names, default_values) -> dict:
         if '.' in translated_key:
             translated_value = reduce(lambda i, acc: (acc, i), reversed(translated_key.split('.')[1:] + [value]))
             translated_key = translated_key.split('.')[0]
+        elif translated_key == '_id':
+            return key, value
         return translated_key, translated_value
 
     defaults = default_values.copy()
@@ -248,11 +250,11 @@ async def aioresume_from_redis(redishost, eshost, name):
     LOGGER.info('asyncio resume from redis (host=%s) to elasticsearch (%s) index %s', redishost, eshost, name)
 
 
-async def aioresume_from_pgsql(pgsqldsn, eshost, name):
+async def aioresume_from_pgsql(pgsqldsn, eshost, name, translationmap):
     LOGGER.info('asyncio resume from postgresql (dsn=%s) to elasticsearch (%s) index %s', pgsqldsn, eshost, name)
     dsndict = dict((kvstr.split('=') for kvstr in pgsqldsn.split()))
     psql_queue = await PostgresqlQueueAsync.create(await create_engine(**dsndict))
-    await Solr2EsAsync(None, AsyncElasticsearch(hosts=[eshost]), None).resume(psql_queue, name)
+    await Solr2EsAsync(None, AsyncElasticsearch(hosts=[eshost]), None).resume(psql_queue, name, None, translationmap)
 
 
 async def aiomigrate(solrhost, eshost, name, solrfq, solrid):
@@ -279,12 +281,23 @@ def usage(argv):
     print('\t--redishost: redis host (default \'redis\')')
     print('\t--postgresqldsn: postgresql Data Source Name')
     print('\t  (ex \'dbname=solr2es user=test password=test host=postgresql\' default None)')
+    print('\t--translationmap: string as dict to translate fields')
+
+
+def _get_translation_map(input_str) -> dict:
+    if input_str is None:
+        return dict()
+    if input_str.startswith('@'):
+        with open(input_str[1:]) as translation_map:
+            return loads(translation_map.read())
+    else:
+        return loads(input_str)
 
 
 def main():
     options, remainder = getopt.gnu_getopt(sys.argv[1:], 'hmdtra',
             ['help', 'migrate', 'dump', 'test', 'resume', 'async', 'solrhost=', 'eshost=',
-             'redishost=', 'index=', 'core=', 'solrfq=', 'solrid=', 'postgresqldsn='])
+             'redishost=', 'index=', 'core=', 'solrfq=', 'solrid=', 'postgresqldsn=', 'translationmap='])
     if len(sys.argv) == 1:
         usage(sys.argv)
         sys.exit()
@@ -300,6 +313,7 @@ def main():
     core_name = 'solr2es'
     index_name = None
     action = 'migrate'
+    translationmap = None
     for opt, arg in options:
         if opt in ('-h', '--help'):
             usage(sys.argv)
@@ -332,6 +346,9 @@ def main():
         if opt == '--core':
             core_name = arg
 
+        if opt == '--translationmap':
+            translationmap = _get_translation_map(arg)
+
         if opt in ('-d', '--dump'):
             action = 'dump' if postgresqldsn is None else 'dump_pgsql'
         elif opt in ('-r', '--resume'):
@@ -359,7 +376,7 @@ def main():
             else dump_into_pgsql(solrurl, postgresqldsn, solrfq, solrid)
     elif action == 'resume_pgsql':
         aioloop.run_until_complete(
-            aioresume_from_pgsql(postgresqldsn, eshost, index_name)) if with_asyncio else resume_from_postgresql(postgresqldsn, eshost, index_name)
+            aioresume_from_pgsql(postgresqldsn, eshost, index_name, translationmap)) if with_asyncio else resume_from_postgresql(postgresqldsn, eshost, index_name)
     elif action == 'test':
         solr_status = loads(SolrCoreAdmin('http://%s:8983/solr/admin/cores?action=STATUS&core=%s' % (solrhost, core_name)).status())
         LOGGER.info('Elasticsearch ping on %s is %s', eshost, 'OK' if Elasticsearch(host=eshost).ping() else 'KO')

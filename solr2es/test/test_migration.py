@@ -229,5 +229,9 @@ class TestTuplesToDict(unittest.TestCase):
 
 class TestCreateEsActions(unittest.TestCase):
     def test_create_es_actions(self):
-        self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "123"}}\n{"_id": "123", "foo": "bar"}',
+        self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "123"}}\n{"my_id": "123", "foo": "bar"}',
                          create_es_actions('baz', [{'my_id': '123', 'foo': 'bar'}], {'my_id': {'name': '_id'}}))
+
+    def test_create_es_action_without_id_field_in_translation_map(self):
+        self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "123"}}\n{"id": "123", "foo": "bar"}',
+                         create_es_actions('baz', [{'id': '123', 'foo': 'bar'}], {}))
