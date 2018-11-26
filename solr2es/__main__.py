@@ -243,6 +243,9 @@ async def aioresume_from_redis(redishost, eshost, name):
 
 async def aioresume_from_pgsql(pgsqldsn, eshost, name):
     LOGGER.info('asyncio resume from postgresql (dsn=%s) to elasticsearch (%s) index %s', pgsqldsn, eshost, name)
+    dsndict = dict((kvstr.split('=') for kvstr in pgsqldsn.split()))
+    psql_queue = await PostgresqlQueueAsync.create(await create_engine(**dsndict))
+    await Solr2EsAsync(None, AsyncElasticsearch(hosts=[eshost]), None).resume(psql_queue, name)
 
 
 async def aiomigrate(solrhost, eshost, name, solrfq, solrid):
@@ -256,8 +259,8 @@ async def aiomigrate(solrhost, eshost, name, solrfq, solrid):
 def usage(argv):
     print('Usage: %s action' % argv[0])
     print('\t-m|--migrate: migrate solr to elasticsearch')
-    print('\t-r|--resume: resume from redis')
-    print('\t-d|--dump: dump into redis (default) or posgresql (if dsn given) queue')
+    print('\t-r|--resume: resume from redis (default) or postgresql (if dsn given)')
+    print('\t-d|--dump: dump into redis (default) or postgresql (if dsn given) queue')
     print('\t-t|--test: test solr/elasticsearch connections')
     print('\t-a|--async: use python 3 asyncio')
     print('\t--solrhost: solr host (default \'solr\')')
