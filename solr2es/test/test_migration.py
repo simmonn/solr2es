@@ -5,7 +5,7 @@ from elasticsearch import Elasticsearch
 from nose.tools import assert_raises
 from pysolr import Solr, SolrError
 
-from solr2es.__main__ import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc, _tuples_to_dict
+from solr2es.__main__ import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc, _tuples_to_dict, create_es_actions
 
 
 class TestMigration(unittest.TestCase):
@@ -225,3 +225,9 @@ class TestTuplesToDict(unittest.TestCase):
         self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2', 'd': 'content3'}}},
                          _tuples_to_dict([('nested', ('a', ('b', 'content1'))),
                                           ('nested', ('a', [('c', 'content2'), ('d', 'content3')]))]))
+
+
+class TestCreateEsActions(unittest.TestCase):
+    def test_create_es_actions(self):
+        self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "123"}}\n{"_id": "123", "foo": "bar"}',
+                         create_es_actions('baz', [{'my_id': '123', 'foo': 'bar'}], {'my_id': {'name': '_id'}}))

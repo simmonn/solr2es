@@ -134,10 +134,17 @@ class Solr2EsAsync(object):
 def create_es_actions(index_name, solr_results, translation_map) -> str:
     default_values = {k: v['default_value'] for k, v in translation_map.items() if 'default_value' in v}
     translation_names = {k: v['name'] for k, v in translation_map.items() if 'name' in v}
+    id_key = _get_id_field_name(translation_names)
 
-    results = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row['id']}}, translate_doc(row, translation_names, default_values))
+    results = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row[id_key]}}, translate_doc(row, translation_names, default_values))
                 for row in solr_results]
     return '\n'.join(list(map(lambda d: dumps(d), chain(*results))))
+
+
+def _get_id_field_name(translation_names):
+    set_id = {k for k, v in translation_names.items() if v == '_id'}
+    id_key = set_id.pop() if len(set_id) > 0 else '_id'
+    return id_key
 
 
 def translate_doc(row, translation_names, default_values) -> dict:
