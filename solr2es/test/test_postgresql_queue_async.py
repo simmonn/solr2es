@@ -59,3 +59,10 @@ class TestPostgresqlQueueAsync(asynctest.TestCase):
 
     async def test_pop_timeout(self):
         self.assertEqual([], await self.pgsql_queue.pop())
+
+    async def test_push_on_conflict_do_nothing(self):
+        docs = [{'id': 'id1', 'duplicate': 'true'}, {'id': 'id1', 'duplicate': 'true'}]
+
+        await self.pgsql_queue.push(docs)
+
+        self.assertEqual([{'id': 'id1', 'duplicate': 'true'}], await self.pgsql_queue.pop())

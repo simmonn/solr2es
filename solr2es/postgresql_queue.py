@@ -3,6 +3,7 @@ from json import dumps, loads
 import sqlalchemy as sa
 
 from psycopg2.extras import execute_values
+from sqlalchemy.dialects.postgresql import insert
 
 POP_DOCS_SQL = 'UPDATE solr2es_queue SET done = \'t\' WHERE uid IN (' \
                  'SELECT uid FROM solr2es_queue WHERE done = \'f\' LIMIT 10) RETURNING json'
@@ -63,8 +64,7 @@ class PostgresqlQueueAsync(object):
     async def push(self, value_list) -> None:
         async with self.postgresql.acquire() as conn:
             values = list(({'id': r[self.unique_id], 'json': dumps(r)} for r in value_list))
-            query = queue_table.insert().values(values)
-            await conn.execute(query)
+            await conn.execute(insert(queue_table).values(values).on_conflict_do_nothing(index_elements=['id']))
             await conn.execute('NOTIFY solr2es, \'notify\'')
 
     async def create_table_if_not_exists(self):
