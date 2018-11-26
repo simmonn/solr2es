@@ -5,7 +5,8 @@ from elasticsearch import Elasticsearch
 from nose.tools import assert_raises
 from pysolr import Solr, SolrError
 
-from solr2es.__main__ import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc, _tuples_to_dict, create_es_actions
+from solr2es.__main__ import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc, _tuples_to_dict, create_es_actions, \
+    IllegalStateError
 
 
 class TestMigration(unittest.TestCase):
@@ -146,7 +147,7 @@ class TestMigration(unittest.TestCase):
                       data='{ "add-field":{ "name":"flag_field_test", "type":"string", "stored":true }}')
         TestMigration.solr.add([{"id": "142", "flag_field_test": "content1"}])
 
-        with assert_raises(Exception) as e:
+        with assert_raises(IllegalStateError) as e:
             self.solr2es.migrate('foo',
                                  '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
                                  {"flag_field_(.*)": {"name": "flag1_\\1"}, "flag_(.*)": {"name": "flag2_\\1"}})

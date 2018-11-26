@@ -27,6 +27,11 @@ LOGGER.setLevel(logging.INFO)
 DEFAULT_ES_DOC_TYPE = 'doc'
 
 
+class IllegalStateError(RuntimeError):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+
 class Solr2Es(object):
     def __init__(self, solr, es, refresh=False) -> None:
         super().__init__()
@@ -166,17 +171,13 @@ def translate_doc(row, translation_names, default_values) -> dict:
 
 
 def _translate_key(key, translation_names) -> str:
-    matched_fields = (((k, v) for k, v in translation_names.items() if re.search(k, key)))
-    try:
-        key_regexp, value_regexp = next(matched_fields)
-        try:
-            next(matched_fields)
-            LOGGER.error('Too many doc fields matching the translation_names condition : %s', key_regexp)
-            raise Exception('Too many doc fields matching the translation_names condition : %s' % key_regexp)
-        except StopIteration:
-            return re.sub(key_regexp, value_regexp, key)
-    except StopIteration:
+    matched_fields = list(((k, v) for k, v in translation_names.items() if re.search(k, key)))
+    if len(matched_fields) == 0:
         return key
+    if len(matched_fields) == 1:
+        old_key_regexp, new_key_regexp = matched_fields[0]
+        return re.sub(old_key_regexp, new_key_regexp, key)
+    raise IllegalStateError('Too many doc fields matching the translation_names condition : %s' % matched_fields)
 
 
 def _tuples_to_dict(tuples) -> dict:
