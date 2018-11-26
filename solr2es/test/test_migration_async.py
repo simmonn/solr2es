@@ -52,7 +52,7 @@ class TestResumeAsync(asynctest.TestCase):
         self.postgresql.close()
 
     async def test_resume_from_postgresql_to_elasticsearch(self):
-        postgresql_queue = PostgresqlQueueAsync(self.postgresql)
+        postgresql_queue = await PostgresqlQueueAsync.create(self.postgresql)
         await postgresql_queue.push([{'id': 'id1', 'name': 'john doe'}, {'id': 'id2', 'name': 'bob smith'}])
 
         await Solr2EsAsync(None, self.aes, None, refresh=True).resume(postgresql_queue, 'test')

@@ -11,7 +11,7 @@ class TestPostgresqlQueueAsync(asynctest.TestCase):
 
     async def setUp(self):
         self.postgresql = await create_pool('dbname=solr2es user=test password=test host=postgresql')
-        self.pgsql_queue = PostgresqlQueueAsync(self.postgresql)
+        self.pgsql_queue = await PostgresqlQueueAsync.create(self.postgresql)
 
     async def tearDown(self):
         async with self.postgresql.acquire() as conn:

@@ -1,3 +1,4 @@
+import asyncio
 from asyncio import ensure_future, wait_for, futures
 from json import dumps, loads
 
@@ -43,8 +44,13 @@ class PostgresqlQueueAsync(object):
         self.unique_id = unique_id
         self.postgresql = postgresql
 
-    async def push_loop(self, producer):
+    @classmethod
+    async def create(cls, postgresql, unique_id='id'):
+        self = cls(postgresql, unique_id=unique_id)
         await self.create_table_if_not_exists()
+        return self
+
+    async def push_loop(self, producer):
         async for results in producer():
             await self.push(results)
 
