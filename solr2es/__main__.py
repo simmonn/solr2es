@@ -34,12 +34,14 @@ class Solr2Es(object):
         self.es = es
         self.refresh = refresh
 
-    def migrate(self, index_name, mapping=None, translation_map=None, solr_filter_query='*', sort_field='id') -> int:
+    def migrate(self, index_name, mapping=None, translation_map=None, solr_filter_query='*',
+                sort_field='id', solr_rows_pagination=10) -> int:
         translation_dict = dict() if translation_map is None else translation_map
         nb_results = 0
         if not self.es.indices.exists([index_name]):
             self.es.indices.create(index_name, body=mapping)
-        for results in self.produce_results(solr_filter_query=solr_filter_query, sort_field=sort_field):
+        for results in self.produce_results(solr_filter_query=solr_filter_query,
+                                            sort_field=sort_field, solr_rows_pagination=solr_rows_pagination):
             actions = create_es_actions(index_name, results, translation_dict)
             response = self.es.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
@@ -50,11 +52,11 @@ class Solr2Es(object):
         LOGGER.info('processed %s documents', nb_results)
         return nb_results
 
-    def produce_results(self, solr_filter_query='*', sort_field='id'):
+    def produce_results(self, solr_filter_query='*', sort_field='id', solr_rows_pagination=10):
         nb_results = 0
         nb_total = 0
         cursor_ended = False
-        kwargs = dict(fq=solr_filter_query, cursorMark='*', sort='%s asc' % sort_field)
+        kwargs = dict(fq=solr_filter_query, cursorMark='*', sort='%s asc' % sort_field, rows=solr_rows_pagination)
         while not cursor_ended:
             results = self.solr.search('*:*', **kwargs)
             if kwargs['cursorMark'] == '*':
@@ -78,23 +80,25 @@ class Solr2EsAsync(object):
         self.aes = aes
         self.refresh = refresh
 
-    async def migrate(self, index_name, mapping=None, translation_map=None, solr_filter_query='*', sort_field='id') -> int:
+    async def migrate(self, index_name, mapping=None, translation_map=None, solr_filter_query='*', sort_field='id', solr_rows_pagination=10) -> int:
         translation_dict = dict() if translation_map is None else translation_map
         if not await self.aes.indices.exists([index_name]):
             await self.aes.indices.create(index_name, body=mapping)
 
         nb_results = 0
-        async for results in self.produce_results(solr_filter_query=solr_filter_query, sort_field=sort_field):
+        async for results in self.produce_results(solr_filter_query=solr_filter_query,
+                                                  sort_field=sort_field, solr_rows_pagination=solr_rows_pagination):
             actions = create_es_actions(index_name, results, translation_dict)
             await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
         return nb_results
 
-    async def produce_results(self, solr_filter_query='*', sort_field='id'):
+    async def produce_results(self, solr_filter_query='*', sort_field='id', solr_rows_pagination=10):
         cursor_ended = False
         nb_results = 0
         nb_total = 0
-        kwargs = dict(cursorMark='*', sort='%s asc' % sort_field, q='*:*', wt='json', fq=solr_filter_query)
+        kwargs = dict(cursorMark='*', sort='%s asc' % sort_field, q='*:*', wt='json',
+                      fq=solr_filter_query, rows=solr_rows_pagination)
         while not cursor_ended:
             async with self.aiohttp_session.get(self.solr_url + '/select/', params=kwargs) as resp:
                 json = loads(await resp.text())
