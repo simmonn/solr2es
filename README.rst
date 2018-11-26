@@ -7,24 +7,6 @@ solr2es
 
 Migration script from solr to elasticsearch
 
-Develop
--------
-
-To build and run tests you can make :
-
-::
-
-    virtualenv --python=python3.6 venv
-    source venv/bin/activate
-    python setup.py develop
-    python setup.py test
-
-To release :
-
-::
-
-    python setup.py  sdist bdist_egg upload
-
 
 Use
 ---
@@ -67,4 +49,24 @@ This will rename all the fields prefixed by *solr_* into *elasticsearch_*.
 ::
 
     {"solr_(.*)": {"name": "elasticsearch_\\1"}}
+
+
+Develop
+-------
+
+To build and run tests you can make :
+
+::
+
+    virtualenv --python=python3.6 venv
+    source venv/bin/activate
+    python setup.py develop
+    python setup.py test
+
+To release :
+
+::
+
+    python setup.py  sdist bdist_egg upload
+
 
