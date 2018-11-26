@@ -2,7 +2,7 @@ from asyncio import ensure_future, wait_for
 from json import loads
 
 import asynctest
-from aiopg import create_pool
+from aiopg.sa import create_engine
 
 from solr2es.postgresql_queue import PostgresqlQueueAsync
 
@@ -10,14 +10,13 @@ from solr2es.postgresql_queue import PostgresqlQueueAsync
 class TestPostgresqlQueueAsync(asynctest.TestCase):
 
     async def setUp(self):
-        self.postgresql = await create_pool('dbname=solr2es user=test password=test host=postgresql')
-        self.pgsql_queue = await PostgresqlQueueAsync.create(self.postgresql)
+        self.engine = await create_engine(user='test', database='solr2es', host='postgresql', password='test')
+        self.pgsql_queue = await PostgresqlQueueAsync.create(self.engine)
 
     async def tearDown(self):
-        async with self.postgresql.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute('TRUNCATE solr2es_queue')
-        self.postgresql.close()
+        async with self.engine.acquire() as conn:
+            await conn.execute('TRUNCATE solr2es_queue')
+        self.engine.close()
 
     async def test_push_loop(self):
         async def producer():
@@ -26,18 +25,24 @@ class TestPostgresqlQueueAsync(asynctest.TestCase):
 
         await self.pgsql_queue.push_loop(producer)
 
-        async with self.postgresql.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute('SELECT id, json FROM solr2es_queue ORDER BY id')
-                results = await cur.fetchall()
+        async with self.engine.acquire() as conn:
+            result_proxy = await conn.execute('SELECT id, json FROM solr2es_queue ORDER BY id')
+            results = await result_proxy.fetchall()
 
-                self.assertEqual(3, len(results))
-                self.assertEqual({'id': 'extract_1', 'foo': 'bar'}, loads(results[0][1]))
-                self.assertEqual({'id': 'extract_2', 'toot': 'toot'}, loads(results[1][1]))
-                self.assertEqual({'id': 'extract_3', 'baz': 'qux'}, loads(results[2][1]))
+            self.assertEqual(3, len(results))
+            self.assertEqual({'id': 'extract_1', 'foo': 'bar'}, loads(results[0][1]))
+            self.assertEqual({'id': 'extract_2', 'toot': 'toot'}, loads(results[1][1]))
+            self.assertEqual({'id': 'extract_3', 'baz': 'qux'}, loads(results[2][1]))
 
     async def test_push_pop_sequential(self):
         docs = [{'id': 'id1', 'foo': 'bar'}, {'id': 'id2', 'baz': 'qux'}]
+
+        await self.pgsql_queue.push(docs)
+
+        self.assertEqual(docs, await self.pgsql_queue.pop())
+
+    async def test_push_single_quote(self):
+        docs = [{'id': 'id1', 'foo': 'ba\'r'}]
 
         await self.pgsql_queue.push(docs)
 

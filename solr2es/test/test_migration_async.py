@@ -1,8 +1,7 @@
 import aiohttp
 import asynctest
-from aiopg import create_pool
+from aiopg.sa import create_engine
 from elasticsearch_async import AsyncElasticsearch
-
 
 from solr2es.__main__ import DEFAULT_ES_DOC_TYPE, Solr2EsAsync
 from solr2es.postgresql_queue import PostgresqlQueueAsync
@@ -41,18 +40,17 @@ class TestResumeAsync(asynctest.TestCase):
 
     async def setUp(self):
         self.aes = AsyncElasticsearch(hosts=['elasticsearch'])
-        self.postgresql = await create_pool('dbname=solr2es user=test password=test host=postgresql')
+        self.engine = await create_engine(user='test', database='solr2es', host='postgresql', password='test')
 
     async def tearDown(self):
         await self.aes.indices.delete(index='test')
         await self.aes.transport.close()
-        async with self.postgresql.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute('TRUNCATE solr2es_queue')
-        self.postgresql.close()
+        async with self.engine.acquire() as conn:
+            await conn.execute('TRUNCATE solr2es_queue')
+        self.engine.close()
 
     async def test_resume_from_postgresql_to_elasticsearch(self):
-        postgresql_queue = await PostgresqlQueueAsync.create(self.postgresql)
+        postgresql_queue = await PostgresqlQueueAsync.create(self.engine)
         await postgresql_queue.push([{'id': 'id1', 'name': 'john doe'}, {'id': 'id2', 'name': 'bob smith'}])
 
         await Solr2EsAsync(None, self.aes, None, refresh=True).resume(postgresql_queue, 'test')

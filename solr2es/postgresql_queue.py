@@ -1,6 +1,6 @@
-import asyncio
 from asyncio import ensure_future, wait_for, futures
 from json import dumps, loads
+import sqlalchemy as sa
 
 from psycopg2.extras import execute_values
 
@@ -14,6 +14,12 @@ CREATE_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS "solr2es_queue" (' \
                    'done boolean default false )'
 
 INSERT_SQL = 'INSERT INTO solr2es_queue (id, json) VALUES %s'
+
+metadata = sa.MetaData()
+queue_table = sa.Table('solr2es_queue', metadata,
+               sa.Column('uid', sa.Integer, primary_key=True),
+               sa.Column('id', sa.String(64)),
+               sa.Column('json', sa.Text()))
 
 
 class PostgresqlQueue(object):
@@ -56,26 +62,24 @@ class PostgresqlQueueAsync(object):
 
     async def push(self, value_list) -> None:
         async with self.postgresql.acquire() as conn:
-            async with conn.cursor() as cur:
-                values = ('(%r, %r)' % (r[self.unique_id], dumps(r)) for r in value_list)
-                await cur.execute(INSERT_SQL % ','.join(values))
-                await cur.execute('NOTIFY solr2es, \'notify\'')
+            values = list(({'id': r[self.unique_id], 'json': dumps(r)} for r in value_list))
+            query = queue_table.insert().values(values)
+            await conn.execute(query)
+            await conn.execute('NOTIFY solr2es, \'notify\'')
 
     async def create_table_if_not_exists(self):
         async with self.postgresql.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(CREATE_TABLE_SQL)
+            await conn.execute(CREATE_TABLE_SQL)
 
     async def pop(self, timeout=1) -> list:
         async with self.postgresql.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute("LISTEN solr2es")
-                while True:
-                    await cur.execute(POP_DOCS_SQL)
-                    if cur.rowcount:
-                        return list(map(lambda row: loads(row[0]), await cur.fetchall()))
-                    notification = ensure_future(conn.notifies.get())
-                    try:
-                        await wait_for(notification, timeout)
-                    except futures.TimeoutError:
-                        return []
+            await conn.execute("LISTEN solr2es")
+            while True:
+                result_proxy = await conn.execute(POP_DOCS_SQL)
+                if result_proxy.rowcount:
+                    return list(map(lambda row: loads(row[0]), await result_proxy.fetchall()))
+                notification = ensure_future(conn.connection.notifies.get())
+                try:
+                    await wait_for(notification, timeout)
+                except futures.TimeoutError:
+                    return []

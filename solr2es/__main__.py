@@ -12,6 +12,7 @@ import aiohttp
 import asyncio_redis
 import redis
 from aiopg import create_pool
+from aiopg.sa import create_engine
 from elasticsearch import Elasticsearch
 from elasticsearch_async import AsyncElasticsearch
 from pysolr import Solr, SolrCoreAdmin
@@ -225,7 +226,8 @@ async def aiodump_into_redis(solrhost, redishost, solrfq, solrid):
 
 async def aiodump_into_pgsql(solrhost, pgsqldsn, solrfq, solrid):
     LOGGER.info('asyncio dump from solr (%s) into postgresql (dsn=%s) with filter query (%s)', solrhost, pgsqldsn, solrfq)
-    psql_queue = await PostgresqlQueueAsync.create(await create_pool(pgsqldsn), unique_id=solrid)
+    dsndict = dict((kvstr.split('=') for kvstr in pgsqldsn.split()))
+    psql_queue = await PostgresqlQueueAsync.create(await create_engine(**dsndict), unique_id=solrid)
     async with aiohttp.ClientSession() as session:
         await psql_queue.push_loop(
             partial(Solr2EsAsync(session, None, solrhost).produce_results, solr_filter_query=solrfq, sort_field=solrid))
