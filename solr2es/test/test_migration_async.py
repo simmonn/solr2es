@@ -29,8 +29,8 @@ class TestMigrationAsync(asynctest.TestCase):
 
     async def test_migrate_with_es_mapping(self):
         async with aiohttp.ClientSession() as session:
-            mapping = '{"mappings": {"doc": {"properties": {"my_field": {"type": "keyword"}}}}}'
-            await Solr2EsAsync(session, self.aes, self.solr_url, True).migrate('foo', mapping=mapping)
+            index_body = '{"mappings": {"doc": {"properties": {"my_field": {"type": "keyword"}}}}}'
+            await Solr2EsAsync(session, self.aes, self.solr_url, True).migrate('foo', es_index_body_str=index_body)
             self.assertEqual({'my_field': {'type': 'keyword'}},
                              (await self.aes.indices.get_field_mapping(index=['foo'], fields=['my_field']))
                              ['foo']['mappings']['doc']['my_field']['mapping'])
