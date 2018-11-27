@@ -257,8 +257,10 @@ async def aioresume_from_pgsql(pgsqldsn, eshost, name, translationmap, es_index_
     psql_queue = await PostgresqlQueueAsync.create(await create_engine(**dsndict))
     es_index_body_str = None if es_index_body is None else dumps(es_index_body)
 
-    await Solr2EsAsync(None, AsyncElasticsearch(hosts=[eshost]), None).\
+    elasticsearch = AsyncElasticsearch(hosts=[eshost])
+    await Solr2EsAsync(None, elasticsearch, None).\
         resume(psql_queue, name, es_index_body_str, translationmap)
+    await elasticsearch.transport.close()
 
 
 async def aiomigrate(solrhost, eshost, name, solrfq, solrid):
