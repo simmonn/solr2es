@@ -285,7 +285,7 @@ def usage(argv):
     print('\t--translationmap: string as dict to translate fields')
 
 
-def _get_translation_map(input_str) -> dict:
+def _get_dict_from_string_or_file(input_str) -> dict:
     if input_str is None:
         return dict()
     if input_str.startswith('@'):
@@ -348,7 +348,7 @@ def main():
             core_name = arg
 
         if opt == '--translationmap':
-            translationmap = _get_translation_map(arg)
+            translationmap = _get_dict_from_string_or_file(arg)
 
         if opt in ('-d', '--dump'):
             action = 'dump' if postgresqldsn is None else 'dump_pgsql'
