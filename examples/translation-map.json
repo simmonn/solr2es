@@ -1,0 +1,8 @@
+{
+  "extract_id":{"name": "_id"},
+  "tika_metadata_(.*)": {"name": "metadata.tika_metadata_\\1"},
+  "type": {"default": "Document"},
+  "status": {"default": "INDEXED"},
+  "extract_base_type": {"name": "contentType"},
+  "extract_paths": {"name": "path"}
+}
