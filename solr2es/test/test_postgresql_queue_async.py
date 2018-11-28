@@ -48,6 +48,13 @@ class TestPostgresqlQueueAsync(asynctest.TestCase):
 
         self.assertEqual(docs, await self.pgsql_queue.pop())
 
+    async def test_queue_size(self):
+        self.assertEqual(0, await self.pgsql_queue.size())
+        await self.pgsql_queue.push([{'id': 'id1', 'foo': 'bar'}])
+        self.assertEqual(1, await self.pgsql_queue.size())
+        await self.pgsql_queue.pop()
+        self.assertEqual(0, await self.pgsql_queue.size())
+
     async def test_push_pop_blocking(self):
         docs = [{'id': 'id1', 'foo': 'bar'}, {'id': 'id2', 'baz': 'qux'}]
         pop_future = ensure_future(self.pgsql_queue.pop())

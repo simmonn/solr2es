@@ -15,6 +15,7 @@ CREATE_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS "solr2es_queue" (' \
                    'done boolean default false )'
 
 INSERT_SQL = 'INSERT INTO solr2es_queue (id, json) VALUES %s'
+SIZE_SQL = 'SELECT COUNT(*) FROM solr2es_queue WHERE done = \'f\''
 
 metadata = sa.MetaData()
 queue_table = sa.Table('solr2es_queue', metadata,
@@ -83,3 +84,8 @@ class PostgresqlQueueAsync(object):
                     await wait_for(notification, timeout)
                 except futures.TimeoutError:
                     return []
+
+    async def size(self) -> int:
+        async with self.postgresql.acquire() as conn:
+            result_proxy = await conn.execute(SIZE_SQL)
+            return await result_proxy.scalar()
