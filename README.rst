@@ -8,6 +8,29 @@ solr2es
 Migration script from solr to elasticsearch
 
 
+CLI
+---
+
+Here are the option to use as a command line :
+
+* -m | --migrate : to migrate from a solr index to an elasticsearch index
+* -r | --resume : to resume from a given queue to an elasticsearch index. By default, the queue will be redis. If the parameter "postgresqldsn" is set, the queue will be postgresql.
+* -d | --dump : to dump from a solr index into a queue. By default, the queue will be redis.  If the parameter "postgresqldsn" is set, the queue will be postgresql.
+* -t | --test : to test the solr and elasticsearch connections
+* -a | --async : to use python 3 asyncio
+* --solrhost : to set solr host (by default: 'solr')
+* --solrfq: to set solr filter query (by default: '*')
+* --solrid: to set solr id field name (by default: 'id')
+* --core: to set solr core name (by default: 'solr2es')
+* --index: to set index name for solr and elasticsearch (by default: solr core name, see --core parameter)
+* --redishost: to set redis host (by default: 'redis')
+* --postgresqldsn: to set postgresql Data Source Name (by default: None, by example: 'dbname=solr2es user=test password=test host=postgresql')
+* --eshost: to set elasticsearch host (by default: 'elasticsearch')
+* --translationmap: dict string or file path (starting with @) to translate fields from queue into elasticsearch (by default: None, by example: '{"postgresql_field": {"name": "es_field"}}')
+* --esmapping: dict string or file path (starting with @) to set elasticsearch mapping (by default: None)
+* --essetting: dict string or file path (starting with @) to set elasticsearch setting (by default: None)
+
+
 Use
 ---
 
@@ -16,19 +39,19 @@ Use
 
 The purpose of a translation_map is to create a mapping between the fields coming from Solr to the ones inserted to Elasticsearch.
 
-1. If a field from solr doesn't exist in the translation_map, it will be inserted as it is into Elasticsearch.
+1. If a field from Solr doesn't exist in the translation_map, it will be inserted as it is into Elasticsearch.
 
 2. Use the property *name* to rename a field in Elasticsearch :
 
 ::
 
-    {"solr_name": {'name': "es_name"}}
+    {"solr_name": {"name": "es_name"}}
 
 
 3. Use the property *default_value* if you want to set a default value into a field in Elasticsearch.
 
-If the field exists into Solr and has a value, it won't be changed by the translation_map.
-Otherwise a field *solr_name* willl be added to Elasticsearch with value `john doe`.
+If the field exists into solr and has a value, it won't be changed by the translation_map.
+Otherwise a field *solr_name* willl be added to Elasticsearch with value *john doe*.
 
 ::
 
@@ -43,7 +66,7 @@ If the Solr record has a field *nested_a_b*, the Elasticsearch record will get a
     {"nested_a_b": {"name": "nested.a.b"}}
 
 
-5. Use the property *name* with some regex groups capture to rename a bulk of Solr in Elasticsearch.
+5. Use the property *name* with some regex groups capture to rename a bulk of Solr fields in Elasticsearch.
 This will rename all the fields prefixed by *solr_* into *elasticsearch_*.
 
 ::
