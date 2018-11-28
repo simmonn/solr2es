@@ -5,7 +5,10 @@
   "status": {"default": "INDEXED"},
   "extract_base_type": {"name": "contentType"},
   "extract_paths": {"name": "path"},
-  "extract_level": {"name": "extractionLevel", "default": 0},
   "index_timestamp": {"name": "extractionDate"},
-  "_version_": {"name": "extractSolrVersion"}
+  "_version_": {"name": "extractSolrVersion"},
+  "tika_content": {"name": "content", "default": ""},
+  "extract_level": {"name": "extractionLevel", "default": 0},
+  "extract_parent_id": {"name":  "parentDocument"},
+  "extract_root": {"name":  "rootDocument"}
 }
