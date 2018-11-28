@@ -127,6 +127,8 @@ class Solr2EsAsync(object):
 
         nb_results = 0
         nb_total = await queue.size()
+        LOGGER.info('found %s documents', nb_total)
+
         results = await queue.pop()
         while results:
             actions = create_es_actions(index_name, results, translation_dict)
