@@ -6,7 +6,8 @@ from psycopg2.extras import execute_values
 from sqlalchemy.dialects.postgresql import insert
 
 POP_DOCS_SQL = 'UPDATE solr2es_queue SET done = \'t\' WHERE uid IN (' \
-                 'SELECT uid FROM solr2es_queue WHERE done = \'f\' LIMIT 10) RETURNING json'
+               'SELECT uid FROM solr2es_queue WHERE done = \'f\' ORDER BY uid ' \
+               'FOR UPDATE SKIP LOCKED LIMIT 10) RETURNING json'
 
 CREATE_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS "solr2es_queue" (' \
                    'uid serial primary key,' \
@@ -76,9 +77,10 @@ class PostgresqlQueueAsync(object):
         async with self.postgresql.acquire() as conn:
             await conn.execute("LISTEN solr2es")
             while True:
-                result_proxy = await conn.execute(POP_DOCS_SQL)
-                if result_proxy.rowcount:
-                    return list(map(lambda row: loads(row[0]), await result_proxy.fetchall()))
+                async with conn.begin():
+                    result_proxy = await conn.execute(POP_DOCS_SQL)
+                    if result_proxy.rowcount:
+                        return list(map(lambda row: loads(row[0]), await result_proxy.fetchall()))
                 notification = ensure_future(conn.connection.notifies.get())
                 try:
                     await wait_for(notification, timeout)

@@ -64,6 +64,18 @@ class TestPostgresqlQueueAsync(asynctest.TestCase):
 
         self.assertEqual(docs, results)
 
+    async def test_push_pop_concurrent(self):
+        docs = [{'id': 'id1', 'foo': 'bar'}, {'id': 'id2', 'baz': 'qux'}, {'id': 'id3', 'bax': 'qiz'}]
+        pop_future1 = ensure_future(self.pgsql_queue.pop(timeout=0.5))
+        pop_future2 = ensure_future(self.pgsql_queue.pop(timeout=0.5))
+        await self.pgsql_queue.push(docs)
+
+        results1 = await wait_for(pop_future1, 1)
+        results2 = await wait_for(pop_future2, 1)
+
+        self.assertEqual(docs, results1)
+        self.assertEqual([], results2)
+
     async def test_pop_timeout(self):
         self.assertEqual([], await self.pgsql_queue.pop())
 
