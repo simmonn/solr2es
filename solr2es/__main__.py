@@ -127,11 +127,15 @@ class Solr2EsAsync(object):
             await self.aes.indices.create(index_name, body=es_index_body_str)
 
         nb_results = 0
+        nb_total = await queue.size()
         results = await queue.pop()
         while results:
             actions = create_es_actions(index_name, results, translation_dict)
             await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
+            if nb_results % 10000 == 0:
+                LOGGER.info('read %s docs of %s (%s %% done)', nb_results, nb_total,
+                            (100 * nb_results) / nb_total)
             results = await queue.pop()
         return nb_results
 
