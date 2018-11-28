@@ -190,6 +190,9 @@ class TestTranslateDoc(unittest.TestCase):
     def test_with_nested_field(self):
         self.assertEqual({'a': {'b': {'c': 'value'}}}, translate_doc({'a_b_c': 'value'}, {'a_b_c': 'a.b.c'}, {}))
 
+    def test_with_nested_fields_and_value_array(self):
+        self.assertEqual({'a': {'b': 'value1'}}, translate_doc({'a_b': ['value1']}, {'a_b': 'a.b'}, {}))
+
     def test_with_sibling_nested_fields(self):
         self.assertEqual({'a': {'b': 'value1', 'c': 'value2'}},
                          translate_doc({'a_b': 'value1', 'a_c': 'value2'}, {'a_b': 'a.b', 'a_c': 'a.c'}, {}))

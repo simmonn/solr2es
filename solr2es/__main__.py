@@ -158,7 +158,7 @@ def translate_doc(row, translation_names, default_values) -> dict:
         translated_value = value[0] if type(value) is list else value
 
         if '.' in translated_key:
-            translated_value = reduce(lambda i, acc: (acc, i), reversed(translated_key.split('.')[1:] + [value]))
+            translated_value = reduce(lambda i, acc: (acc, i), reversed(translated_key.split('.')[1:] + [translated_value]))
             translated_key = translated_key.split('.')[0]
         elif translated_key == '_id':
             return key, value
