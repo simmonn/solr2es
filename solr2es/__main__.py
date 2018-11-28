@@ -11,7 +11,6 @@ from json import loads, dumps
 import aiohttp
 import asyncio_redis
 import redis
-from aiopg import create_pool
 from aiopg.sa import create_engine
 from elasticsearch import Elasticsearch
 from elasticsearch_async import AsyncElasticsearch
@@ -71,7 +70,7 @@ class Solr2Es(object):
                 kwargs['cursorMark'] = results.nextCursorMark
                 nb_results += len(results)
                 if nb_results % 10000 == 0:
-                    LOGGER.info('read %s docs of %s (%s %% done)', nb_results, nb_total, (100 * nb_results)/nb_total)
+                    LOGGER.info('read %s docs of %s (%.2f %% done)', nb_results, nb_total, (100 * nb_results)/nb_total)
                 yield results
             else:
                 cursor_ended = True
@@ -114,7 +113,7 @@ class Solr2EsAsync(object):
                     kwargs['cursorMark'] = json['nextCursorMark']
                     nb_results += len(json['response']['docs'])
                     if nb_results % 10000 == 0:
-                        LOGGER.info('read %s docs of %s (%s %% done)', nb_results, nb_total,
+                        LOGGER.info('read %s docs of %s (%.2f %% done)', nb_results, nb_total,
                                     (100 * nb_results) / nb_total)
                     yield json['response']['docs']
                 else:
@@ -134,7 +133,7 @@ class Solr2EsAsync(object):
             await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
             if nb_results % 10000 == 0:
-                LOGGER.info('read %s docs of %s (%s %% done)', nb_results, nb_total,
+                LOGGER.info('read %s docs of %s (%.2f %% done)', nb_results, nb_total,
                             (100 * nb_results) / nb_total)
             results = await queue.pop()
         return nb_results
