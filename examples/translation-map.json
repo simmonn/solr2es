@@ -4,5 +4,8 @@
   "type": {"default": "Document"},
   "status": {"default": "INDEXED"},
   "extract_base_type": {"name": "contentType"},
-  "extract_paths": {"name": "path"}
+  "extract_paths": {"name": "path"},
+  "extract_level": {"name": "extractionLevel", "default": 0},
+  "index_timestamp": {"name": "extractionDate"},
+  "_version_": {"name": "extractSolrVersion"}
 }
