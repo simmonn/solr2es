@@ -60,7 +60,7 @@ class Solr2Es(object):
         nb_results = 0
         nb_total = 0
         cursor_ended = False
-        kwargs = dict(fq=solr_filter_query, cursorMark='*', sort='%s asc' % sort_field, rows=solr_rows_pagination)
+        kwargs = dict(fq=solr_filter_query, cursorMark='*', fl='*', sort='%s asc' % sort_field, rows=solr_rows_pagination)
         while not cursor_ended:
             results = self.solr.search('*:*', **kwargs)
             if kwargs['cursorMark'] == '*':
@@ -102,7 +102,7 @@ class Solr2EsAsync(object):
         nb_results = 0
         nb_total = 0
         kwargs = dict(cursorMark='*', sort='%s asc' % sort_field, q='*:*', wt='json',
-                      fq=solr_filter_query, rows=solr_rows_pagination)
+                      fq=solr_filter_query, fl='*', rows=solr_rows_pagination)
         while not cursor_ended:
             async with self.aiohttp_session.get(self.solr_url + '/select/', params=kwargs) as resp:
                 json = loads(await resp.text())
