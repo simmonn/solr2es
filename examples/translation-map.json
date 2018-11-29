@@ -1,15 +1,17 @@
 {
-  "extract_id":{"name": "_id"},
+  "extract_id":{"name": "_id", "ignore": true},
   "[regexp]tika_metadata_(.*)": {"name": "metadata.tika_metadata_\\1"},
   "type": {"default": "Document"},
   "status": {"default": "INDEXED"},
   "extract_base_type": {"name": "contentType"},
   "extract_paths": {"name": "path"},
   "index_timestamp": {"name": "extractionDate"},
-  "_version_": {"name": "extractSolrVersion"},
+  "_version_": {"ignore": true},
   "tika_content": {"name": "content", "default": ""},
   "extract_level": {"name": "extractionLevel", "default": 0},
   "nerTags": {"default": []},
   "extract_parent_id": {"name":  "parentDocument"},
-  "extract_root": {"name":  "rootDocument"}
+  "extract_root": {"name":  "rootDocument"},
+  "suggest": {"ignore": true},
+  "suggest_text": {"ignore": true}
 }

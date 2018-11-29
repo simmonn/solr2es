@@ -145,10 +145,12 @@ def create_es_actions(index_name, solr_results, translation_map) -> str:
     default_values = {k: v['default'] for k, v in translation_map.items() if 'default' in v}
     translation_names = {k: v['name'] for k, v in translation_map.items() if 'name' in v and type(k) == str}
     translation_regexps = {k: v['name'] for k, v in translation_map.items() if 'name' in v and type(k) != str}
+    translation_ignores = {k for k, v in translation_map.items() if 'ignore' in v and v['ignore']}
 
     id_key = _get_id_field_name(translation_names)
 
-    results = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row[id_key]}}, translate_doc(row, translation_names, translation_regexps, default_values))
+    results = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row[id_key]}},
+                translate_doc(row, translation_names, translation_regexps, default_values, translation_ignores))
                 for row in solr_results]
     return '\n'.join(list(map(lambda d: dumps(d), chain(*results))))
 
@@ -159,7 +161,7 @@ def _get_id_field_name(translation_names):
     return id_key
 
 
-def translate_doc(row, translation_names, translation_regexps, default_values) -> dict:
+def translate_doc(row, translation_names, translation_regexps, default_values, translation_ignores) -> dict:
     def translate(key, value):
         translated_key = _translate_key(key, translation_names, translation_regexps)
         translated_value = value[0] if type(value) is list and len(value) > 0 else value
@@ -172,7 +174,7 @@ def translate_doc(row, translation_names, translation_regexps, default_values) -
         return translated_key, translated_value
 
     defaults = default_values.copy()
-    defaults.update(row)
+    defaults.update({k: v for k, v in row.items() if k not in translation_ignores})
     translated = tuple(translate(k, v) for k, v in defaults.items())
     return _tuples_to_dict(translated)
 

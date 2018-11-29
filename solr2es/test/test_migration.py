@@ -194,25 +194,33 @@ class TestMigration(unittest.TestCase):
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual('content1', doc['field1'])
 
+    def test_migrate_with_ignored_fields(self):
+        TestMigration.solr.add([{"id": "12"}])
+
+        self.solr2es.migrate('foo', {}, {'_version_': {'ignore': True}})
+
+        doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="12")
+        self.assertEqual({"id": "12"}, doc)
+
 
 class TestTranslateDoc(unittest.TestCase):
     def test_with_nested_field(self):
-        self.assertEqual({'a': {'b': {'c': 'value'}}}, translate_doc({'a_b_c': 'value'}, {'a_b_c': 'a.b.c'}, {}, {}))
+        self.assertEqual({'a': {'b': {'c': 'value'}}}, translate_doc({'a_b_c': 'value'}, {'a_b_c': 'a.b.c'}, {}, {}, {}))
 
     def test_with_nested_fields_and_value_array(self):
-        self.assertEqual({'a': {'b': 'value1'}}, translate_doc({'a_b': ['value1']}, {'a_b': 'a.b'}, {}, {}))
+        self.assertEqual({'a': {'b': 'value1'}}, translate_doc({'a_b': ['value1']}, {'a_b': 'a.b'}, {}, {}, {}))
 
     def test_with_empty_array_as_default_value(self):
-        self.assertEqual({'array_field': []}, translate_doc({}, {}, {}, {'array_field': []}))
+        self.assertEqual({'array_field': []}, translate_doc({}, {}, {}, {'array_field': []}, {}))
 
     def test_with_sibling_nested_fields(self):
         self.assertEqual({'a': {'b': 'value1', 'c': 'value2'}},
-                         translate_doc({'a_b': 'value1', 'a_c': 'value2'}, {'a_b': 'a.b', 'a_c': 'a.c'}, {}, {}))
+                         translate_doc({'a_b': 'value1', 'a_c': 'value2'}, {'a_b': 'a.b', 'a_c': 'a.c'}, {}, {}, {}))
 
     def test_with_sibling_nested_fields_in_depth(self):
         self.assertEqual({'a': {'b': {'c': {'d': 'value1'}, 'e': 'value2'}}},
                          translate_doc({'a_b_c_d': 'value1', 'a_b_e': 'value2'},
-                                       {'a_b_c_d': 'a.b.c.d', 'a_b_e': 'a.b.e'}, {}, {}))
+                                       {'a_b_c_d': 'a.b.c.d', 'a_b_e': 'a.b.e'}, {}, {}, {}))
 
 
 class TestTuplesToDict(unittest.TestCase):
