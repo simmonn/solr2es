@@ -5,7 +5,7 @@ solr2es
    :alt: Circle CI
    :target: https://circleci.com/gh/ICIJ/solr2es
 
-Migration script from solr to elasticsearch
+Migration script from solr to elasticsearch via a queue, that could be either redis or postgresql.
 
 
 CLI
@@ -29,6 +29,10 @@ Here are the option to use as a command line :
 * --translationmap: dict string or file path (starting with @) to translate fields from queue into elasticsearch (by default: None, by example: '{"postgresql_field": {"name": "es_field"}}')
 * --esmapping: dict string or file path (starting with @) to set elasticsearch mapping (by default: None)
 * --essetting: dict string or file path (starting with @) to set elasticsearch setting (by default: None)
+
+
+.. image:: examples/solr2es_process.png
+    :alt: solr2es process
 
 
 Use
@@ -93,3 +97,10 @@ To release :
     python setup.py  sdist bdist_egg upload
 
 
+Misc
+----
+
+Some features are not implemented yet :
+- Resume from the redis queue to elasticsearch in asynchronous mode (function aioresume_from_redis)
+- Resume from the redis queue to elasticsearch in synchronous mode (function resume_from_redis)
+- Resume from the postgresql queue to elasticsearch in synchronous mode (function resume_from_postgresql)
