@@ -142,7 +142,7 @@ class Solr2EsAsync(object):
 
 
 def create_es_actions(index_name, solr_results, translation_map) -> str:
-    default_values = {k: v['default_value'] for k, v in translation_map.items() if 'default_value' in v}
+    default_values = {k: v['default'] for k, v in translation_map.items() if 'default' in v}
     translation_names = {k: v['name'] for k, v in translation_map.items() if 'name' in v and type(k) == str}
     translation_regexps = {k: v['name'] for k, v in translation_map.items() if 'name' in v and type(k) != str}
 
