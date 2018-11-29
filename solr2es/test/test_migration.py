@@ -1,3 +1,4 @@
+import re
 import unittest
 
 import requests
@@ -137,7 +138,7 @@ class TestMigration(unittest.TestCase):
 
         self.solr2es.migrate('foo',
                              '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-                             {"nested_(.*)": {"name": "nested.\\1"}})
+                             {re.compile(r"nested_(.*)"): {"name": "nested.\\1"}})
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual({'field1': 'content1', 'field2': 'content2'}, doc['nested'])
@@ -150,9 +151,17 @@ class TestMigration(unittest.TestCase):
         with assert_raises(IllegalStateError) as e:
             self.solr2es.migrate('foo',
                                  '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-                                 {"flag_field_(.*)": {"name": "flag1_\\1"}, "flag_(.*)": {"name": "flag2_\\1"}})
-        self.assertTrue('Too many doc fields matching the translation_names condition'
-                        in str(e.exception))
+                                 {re.compile(r"flag_field_(.*)"): {"name": "flag1_\\1"},
+                                  re.compile(r"flag_(.*)"): {"name": "flag2_\\1"}})
+        self.assertTrue('Too many doc fields matching key flag_field_test in translation map' in str(e.exception))
+
+    def test_migrate_with_multiple_matching_fields_one_exact(self):
+        TestMigration.solr.add([{"id": "678", "title": "this is a title"}])
+
+        self.solr2es.migrate('foo', None, {"title": {"name": "new_title"}, "ti(.*)": {"name": "regexp_title"}})
+
+        doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="678")
+        self.assertEqual('this is a title', doc['new_title'])
 
     def test_migrate_with_default_field_value_on_unexisting_field(self):
         TestMigration.solr.add([{"id": "142"}])
@@ -188,19 +197,19 @@ class TestMigration(unittest.TestCase):
 
 class TestTranslateDoc(unittest.TestCase):
     def test_with_nested_field(self):
-        self.assertEqual({'a': {'b': {'c': 'value'}}}, translate_doc({'a_b_c': 'value'}, {'a_b_c': 'a.b.c'}, {}))
+        self.assertEqual({'a': {'b': {'c': 'value'}}}, translate_doc({'a_b_c': 'value'}, {'a_b_c': 'a.b.c'}, {}, {}))
 
     def test_with_nested_fields_and_value_array(self):
-        self.assertEqual({'a': {'b': 'value1'}}, translate_doc({'a_b': ['value1']}, {'a_b': 'a.b'}, {}))
+        self.assertEqual({'a': {'b': 'value1'}}, translate_doc({'a_b': ['value1']}, {'a_b': 'a.b'}, {}, {}))
 
     def test_with_sibling_nested_fields(self):
         self.assertEqual({'a': {'b': 'value1', 'c': 'value2'}},
-                         translate_doc({'a_b': 'value1', 'a_c': 'value2'}, {'a_b': 'a.b', 'a_c': 'a.c'}, {}))
+                         translate_doc({'a_b': 'value1', 'a_c': 'value2'}, {'a_b': 'a.b', 'a_c': 'a.c'}, {}, {}))
 
     def test_with_sibling_nested_fields_in_depth(self):
         self.assertEqual({'a': {'b': {'c': {'d': 'value1'}, 'e': 'value2'}}},
                          translate_doc({'a_b_c_d': 'value1', 'a_b_e': 'value2'},
-                                       {'a_b_c_d': 'a.b.c.d', 'a_b_e': 'a.b.e'}, {}))
+                                       {'a_b_c_d': 'a.b.c.d', 'a_b_e': 'a.b.e'}, {}, {}))
 
 
 class TestTuplesToDict(unittest.TestCase):

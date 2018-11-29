@@ -143,10 +143,12 @@ class Solr2EsAsync(object):
 
 def create_es_actions(index_name, solr_results, translation_map) -> str:
     default_values = {k: v['default_value'] for k, v in translation_map.items() if 'default_value' in v}
-    translation_names = {k: v['name'] for k, v in translation_map.items() if 'name' in v}
+    translation_names = {k: v['name'] for k, v in translation_map.items() if 'name' in v and type(k) == str}
+    translation_regexps = {k: v['name'] for k, v in translation_map.items() if 'name' in v and type(k) != str}
+
     id_key = _get_id_field_name(translation_names)
 
-    results = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row[id_key]}}, translate_doc(row, translation_names, default_values))
+    results = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row[id_key]}}, translate_doc(row, translation_names, translation_regexps, default_values))
                 for row in solr_results]
     return '\n'.join(list(map(lambda d: dumps(d), chain(*results))))
 
@@ -157,9 +159,9 @@ def _get_id_field_name(translation_names):
     return id_key
 
 
-def translate_doc(row, translation_names, default_values) -> dict:
+def translate_doc(row, translation_names, translation_regexps, default_values) -> dict:
     def translate(key, value):
-        translated_key = _translate_key(key, translation_names)
+        translated_key = _translate_key(key, translation_names, translation_regexps)
         translated_value = value[0] if type(value) is list else value
 
         if '.' in translated_key:
@@ -175,14 +177,16 @@ def translate_doc(row, translation_names, default_values) -> dict:
     return _tuples_to_dict(translated)
 
 
-def _translate_key(key, translation_names) -> str:
-    matched_fields = list(((k, v) for k, v in translation_names.items() if re.search(k, key)))
+def _translate_key(key, translation_names, translation_regexps) -> str:
+    if translation_names.get(key) is not None:
+        return translation_names.get(key)
+    matched_fields = list(((k, v) for k, v in translation_regexps.items() if k.search(key)))
     if len(matched_fields) == 0:
         return key
     if len(matched_fields) == 1:
         old_key_regexp, new_key_regexp = matched_fields[0]
-        return re.sub(old_key_regexp, new_key_regexp, key)
-    raise IllegalStateError('Too many doc fields matching the translation_names condition : %s' % matched_fields)
+        return old_key_regexp.sub(new_key_regexp, key)
+    raise IllegalStateError('Too many doc fields matching key %s in translation map : %s' % (key, matched_fields))
 
 
 def _tuples_to_dict(tuples) -> dict:
@@ -297,14 +301,21 @@ def usage(argv):
     print('\t--essetting: elasticsearch setting string or file path beginning with @')
 
 
+def as_translation_map(dct):
+    names_dict = {k: v for k, v in dct.items() if not k.startswith('[regexp]')}
+    regexp_dict = {re.compile(k.replace('[regexp]', '')): v for k, v in dct.items() if k.startswith('[regexp]')}
+    names_dict.update(regexp_dict)
+    return names_dict
+
+
 def _get_dict_from_string_or_file(input_str) -> dict:
     if input_str is None:
         return dict()
     if input_str.startswith('@'):
         with open(input_str[1:]) as translation_map:
-            return loads(translation_map.read())
+            return loads(translation_map.read(), object_hook=as_translation_map)
     else:
-        return loads(input_str)
+        return loads(input_str, object_hook=as_translation_map)
 
 
 def _get_es_mappings_and_settings(essettings_dict, esmapping_dict) -> dict:
