@@ -1,6 +1,18 @@
 Changes
 =======
 
+v. 0.5
+------
+
+* adds postgresql resume
+* elasticsearch : adds mappings and settings support
+* better logs and progress marks
+* doc : README
+* translation map : support for empty default list
+* adds postgresql blocking queue
+* translation map : ignore field
+* translation map : default value
+
 v. 0.4
 ------
 
