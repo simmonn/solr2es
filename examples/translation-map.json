@@ -9,6 +9,7 @@
   "_version_": {"name": "extractSolrVersion"},
   "tika_content": {"name": "content", "default": ""},
   "extract_level": {"name": "extractionLevel", "default": 0},
+  "nerTags": {"default": []},
   "extract_parent_id": {"name":  "parentDocument"},
   "extract_root": {"name":  "rootDocument"}
 }

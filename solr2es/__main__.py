@@ -162,7 +162,7 @@ def _get_id_field_name(translation_names):
 def translate_doc(row, translation_names, translation_regexps, default_values) -> dict:
     def translate(key, value):
         translated_key = _translate_key(key, translation_names, translation_regexps)
-        translated_value = value[0] if type(value) is list else value
+        translated_value = value[0] if type(value) is list and len(value) > 0 else value
 
         if '.' in translated_key:
             translated_value = reduce(lambda i, acc: (acc, i), reversed(translated_key.split('.')[1:] + [translated_value]))
@@ -192,7 +192,7 @@ def _translate_key(key, translation_names, translation_regexps) -> str:
 def _tuples_to_dict(tuples) -> dict:
     ret = dict()
     for k, v in tuples:
-        if type(v) is tuple or type(v) is list:
+        if type(v) is tuple or (type(v) is list and len(v) > 0):
             d = _tuples_to_dict(v) if type(v[0]) is tuple else _tuples_to_dict([v])
             ret[k] = deep_update(ret.get(k, {}), d)
         else:
