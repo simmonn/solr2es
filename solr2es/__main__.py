@@ -13,7 +13,7 @@ import asyncio_redis
 import redis
 from aiopg.sa import create_engine
 from elasticsearch import Elasticsearch
-from elasticsearch_async import AsyncElasticsearch
+from elasticsearch_async import AsyncElasticsearch, AsyncTransport
 from pysolr import Solr, SolrCoreAdmin
 
 from solr2es.postgresql_queue import PostgresqlQueueAsync, PostgresqlQueue
@@ -268,7 +268,7 @@ async def aioresume_from_pgsql(pgsqldsn, eshost, name, translationmap, es_index_
     psql_queue = await PostgresqlQueueAsync.create(await create_engine(**dsndict))
     es_index_body_str = None if es_index_body is None else dumps(es_index_body)
 
-    elasticsearch = AsyncElasticsearch(hosts=[eshost])
+    elasticsearch = AsyncElasticsearch([eshost], AsyncTransport, timeout=60)
     await Solr2EsAsync(None, elasticsearch, None).\
         resume(psql_queue, name, es_index_body_str, translationmap)
     await elasticsearch.transport.close()
