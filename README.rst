@@ -85,6 +85,20 @@ This will rename all the fields prefixed by *queue_* into *elasticsearch_*.
     {"ignored_field": {"ignore": true}}
 
 
+**execution**
+
+1. Execute a dump from Solr into Postgresql specifying the Solr host, the Solr core, the Solr id and the Postgresql DSN
+
+::
+
+    solr2es --postgresqldsn 'dbname=solr2es user=test password=test host=localhost' --solrhost 127.0.0.1 --core test_core --solrid solr_id -d -a
+
+2. Execute a resume from Postgresql into Elasticsearch specifying the Postgresql DSN, the Elasticsearch index, the Elasticsearch mapping, the Elasticsearch settings and the translation map
+
+::
+
+    solr2es --postgresqldsn 'dbname=solr2es user=test password=test host=localhost' --index es-index --translationmap @examples/translation-map.json --esmapping @examples/datashare_index_mappings.json --essetting @examples/datashare_index_settings.json -r -a
+
 
 Develop
 -------
