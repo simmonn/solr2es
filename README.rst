@@ -33,6 +33,7 @@ Here are the option to use as a command line :
 
 .. image:: examples/solr2es_process.png
     :alt: solr2es process
+    :align: center
 
 
 Use
@@ -41,41 +42,48 @@ Use
 **translation_map**
 
 
-The purpose of a translation_map is to create a mapping between the fields coming from Solr to the ones inserted to Elasticsearch.
+The purpose of a translation_map is to create a mapping between the fields coming from the queue (either Redis or Postgresql) to the ones inserted to Elasticsearch.
 
-1. If a field from Solr doesn't exist in the translation_map, it will be inserted as it is into Elasticsearch.
+1. If a field from the queue doesn't exist in the translation_map, it will be inserted as it is into Elasticsearch.
 
 2. Use the property *name* to rename a field in Elasticsearch :
 
 ::
 
-    {"solr_name": {"name": "es_name"}}
+    {"queue_name": {"name": "elasticsearch_name"}}
 
 
 3. Use the property *default* if you want to set a default value into a field in Elasticsearch.
 
-If the field exists into solr and has a value, it won't be changed by the translation_map.
-Otherwise a field *solr_name* willl be added to Elasticsearch with value *john doe*.
+If the field exists into the queue and has a value, it won't be changed by the translation_map.
+Otherwise a field *queue_name* willl be added to Elasticsearch with value *john doe*.
 
 ::
 
-    {"solr_name": {"default": "john doe"}}
+    {"queue_name": {"default": "john doe"}}
 
-4. Use the property *name* with some *.* in it to create a nested field in Elasticsearch.
+4. Use the property *name* with some *.* in it, to create a nested field in Elasticsearch.
 
-If the Solr record has a field *nested_a_b*, the Elasticsearch record will get a field *nested*, that will have a nested field *a*, that will have a nested field *b* that will get the content of *nested_a_b*.
+If the queue record has a field *nested_a_b*, the Elasticsearch record will get a field *nested*, that will have a nested field *a*, that will have a nested field *b* that will get the content of *nested_a_b*.
 
 ::
 
     {"nested_a_b": {"name": "nested.a.b"}}
 
 
-5. Use the property *name* with some regex groups capture to rename a bulk of Solr fields in Elasticsearch.
-This will rename all the fields prefixed by *solr_* into *elasticsearch_*.
+5. Use the property *name* with some regex groups capture to rename a bulk of queue fields in Elasticsearch.
+This will rename all the fields prefixed by *queue_* into *elasticsearch_*.
 
 ::
 
-    {"solr_(.*)": {"name": "elasticsearch_\\1"}}
+    {"queue_(.*)": {"name": "elasticsearch_\\1"}}
+
+6. Use the property *ignore* at *true* to ignore some fields from the queue to Elasticsearch.
+
+::
+
+    {"ignored_field": {"ignore": true}}
+
 
 
 Develop
@@ -101,6 +109,7 @@ Misc
 ----
 
 Some features are not implemented yet :
+
 - Resume from the redis queue to elasticsearch in asynchronous mode (function aioresume_from_redis)
 - Resume from the redis queue to elasticsearch in synchronous mode (function resume_from_redis)
 - Resume from the postgresql queue to elasticsearch in synchronous mode (function resume_from_postgresql)
