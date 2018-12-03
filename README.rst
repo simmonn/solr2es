@@ -71,12 +71,12 @@ If the queue record has a field *nested_a_b*, the Elasticsearch record will get 
     {"nested_a_b": {"name": "nested.a.b"}}
 
 
-5. Use the property *name* with some regex groups capture to rename a bulk of queue fields in Elasticsearch.
+5. Use the property *name* with some regex groups capture to rename a bulk of queue fields in Elasticsearch by adding `[regexp]` at the beginning of the field.
 This will rename all the fields prefixed by *queue_* into *elasticsearch_*.
 
 ::
 
-    {"queue_(.*)": {"name": "elasticsearch_\\1"}}
+    {"[regexp]queue_(.*)": {"name": "elasticsearch_\\1"}}
 
 6. Use the property *ignore* at *true* to ignore some fields from the queue to Elasticsearch.
 
