@@ -24,6 +24,7 @@ LOGGER = logging.getLogger('solr2es')
 LOGGER.setLevel(logging.INFO)
 
 DEFAULT_ES_DOC_TYPE = 'doc'
+DEFAULT_ID_FIELD = 'id'
 
 
 class IllegalStateError(RuntimeError):
@@ -39,7 +40,7 @@ class Solr2Es(object):
         self.refresh = refresh
 
     def migrate(self, index_name, mapping=None, translation_map=None, solr_filter_query='*',
-                sort_field='id', solr_rows_pagination=10) -> int:
+                sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10) -> int:
         translation_dict = dict() if translation_map is None else translation_map
         nb_results = 0
         if not self.es.indices.exists([index_name]):
@@ -56,7 +57,7 @@ class Solr2Es(object):
         LOGGER.info('processed %s documents', nb_results)
         return nb_results
 
-    def produce_results(self, solr_filter_query='*', sort_field='id', solr_rows_pagination=10):
+    def produce_results(self, solr_filter_query='*', sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10):
         nb_results = 0
         nb_total = 0
         cursor_ended = False
@@ -84,7 +85,7 @@ class Solr2EsAsync(object):
         self.aes = aes
         self.refresh = refresh
 
-    async def migrate(self, index_name, es_index_body_str=None, translation_map=None, solr_filter_query='*', sort_field='id', solr_rows_pagination=10) -> int:
+    async def migrate(self, index_name, es_index_body_str=None, translation_map=None, solr_filter_query='*', sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10) -> int:
         translation_dict = dict() if translation_map is None else translation_map
         if not await self.aes.indices.exists([index_name]):
             await self.aes.indices.create(index_name, body=es_index_body_str)
@@ -97,7 +98,7 @@ class Solr2EsAsync(object):
             nb_results += len(results)
         return nb_results
 
-    async def produce_results(self, solr_filter_query='*', sort_field='id', solr_rows_pagination=10):
+    async def produce_results(self, solr_filter_query='*', sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10):
         cursor_ended = False
         nb_results = 0
         nb_total = 0
@@ -129,15 +130,19 @@ class Solr2EsAsync(object):
         nb_total = await queue.size()
         LOGGER.info('found %s documents', nb_total)
 
-        results = await queue.pop()
+        results = ['']
         while results:
-            actions = create_es_actions(index_name, results, translation_dict)
-            await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
-            nb_results += len(results)
-            if nb_results % 10000 == 0:
-                LOGGER.info('read %s docs of %s (%.2f %% done)', nb_results, nb_total,
-                            (100 * nb_results) / nb_total)
-            results = await queue.pop()
+            try:
+                results = await queue.pop()
+                actions = create_es_actions(index_name, results, translation_dict)
+                await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
+                nb_results += len(results)
+                if nb_results % 10000 == 0:
+                    LOGGER.info('read %s docs of %s (%.2f %% done)', nb_results, nb_total,
+                                (100 * nb_results) / nb_total)
+            except Exception:
+                id_key = _get_id_field_name(translation_map)
+                LOGGER.exception('exception while reading results %s' % (r.get(id_key) for r in results))
         return nb_results
 
 
@@ -147,7 +152,7 @@ def create_es_actions(index_name, solr_results, translation_map) -> str:
     translation_regexps = {k: v['name'] for k, v in translation_map.items() if 'name' in v and type(k) != str}
     translation_ignores = {k for k, v in translation_map.items() if 'ignore' in v and v['ignore']}
 
-    id_key = _get_id_field_name(translation_names)
+    id_key = _get_id_field_name(translation_map)
 
     results = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row[id_key]}},
                 translate_doc(row, translation_names, translation_regexps, default_values, translation_ignores))
@@ -155,9 +160,11 @@ def create_es_actions(index_name, solr_results, translation_map) -> str:
     return '\n'.join(list(map(lambda d: dumps(d), chain(*results))))
 
 
-def _get_id_field_name(translation_names):
-    set_id = {k for k, v in translation_names.items() if v == '_id'}
-    id_key = set_id.pop() if len(set_id) > 0 else 'id'
+def _get_id_field_name(translation_map):
+    if translation_map is None:
+        return DEFAULT_ID_FIELD
+    set_id = {k for k, v in translation_map.items() if v.get('name') == '_id'}
+    id_key = set_id.pop() if len(set_id) > 0 else DEFAULT_ID_FIELD
     return id_key
 
 
@@ -342,7 +349,7 @@ def main():
     with_asyncio = False
     solrhost = 'solr'
     solrfq = '*'
-    solrid = 'id'
+    solrid = DEFAULT_ID_FIELD
     eshost = 'elasticsearch'
     redishost = 'redis'
     postgresqldsn = None
