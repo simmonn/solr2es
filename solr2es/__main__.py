@@ -142,7 +142,7 @@ class Solr2EsAsync(object):
                                 (100 * nb_results) / nb_total)
             except Exception:
                 id_key = _get_id_field_name(translation_map)
-                LOGGER.exception('exception while reading results %s' % (r.get(id_key) for r in results))
+                LOGGER.exception('exception while reading results %s' % list(r.get(id_key) for r in results))
         return nb_results
 
 
