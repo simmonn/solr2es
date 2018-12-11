@@ -16,6 +16,7 @@ with open(os.path.join(here, 'CHANGES.rst')) as changes:
 NAME = 'solr2es'
 
 install_requires = [
+    'idna==2.7', # to avoid conflicts between v2.8 and pysolr
     'pysolr==3.8.1',
     'elasticsearch==6.3.1',
     'aiohttp==2.3.10',
