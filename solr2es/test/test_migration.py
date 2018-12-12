@@ -264,6 +264,14 @@ class TestCreateEsActions(unittest.TestCase):
         self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "321", "_routing": "456"}}\n{"id": "321", "root_id": "456"}',
                          create_es_actions('baz', [{'id': '321', 'root_id': '456'}], {'root_id': {'routing_field': True}}))
 
+    def test_create_es_action_with_routing_field_false(self):
+        self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "808"}}\n{"id": "808", "root_id": "654"}',
+                         create_es_actions('baz', [{'id': '808', 'root_id': '654'}], {'root_id': {'routing_field': False}}))
+
+    def test_create_es_action_with_nonexistent_routing_field(self):
+        self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "808"}}\n{"id": "808"}',
+                         create_es_actions('baz', [{'id': '808'}], {'root_id': {'routing_field': True}}))
+
     @raises(IllegalStateError)
     def test_create_es_action_with_more_than_one_routing_field_in_translation_map(self):
         create_es_actions('baz', [{'id': '321'}], {'route1': {'routing_field': True},

@@ -157,7 +157,7 @@ def create_es_actions(index_name, solr_results, translation_map) -> str:
 
     def create_action(row):
         index_params = {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row[id_key]}
-        if routing_key is not None:
+        if routing_key is not None and routing_key in row:
             index_params['_routing'] = row[routing_key]
         return {'index': index_params}
 
