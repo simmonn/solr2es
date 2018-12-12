@@ -153,11 +153,24 @@ def create_es_actions(index_name, solr_results, translation_map) -> str:
     translation_ignores = {k for k, v in translation_map.items() if 'ignore' in v and v['ignore']}
 
     id_key = _get_id_field_name(translation_map)
+    routing_key = _get_routing_field_name(translation_map)
 
-    results = [({'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row[id_key]}},
+    def create_action(row):
+        index_params = {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row[id_key]}
+        if routing_key is not None:
+            index_params['_routing'] = row[routing_key]
+        return {'index': index_params}
+
+    results = [(create_action(row),
                 translate_doc(row, translation_names, translation_regexps, default_values, translation_ignores))
                 for row in solr_results]
     return '\n'.join(list(map(lambda d: dumps(d), chain(*results))))
+
+
+def _get_routing_field_name(translation_map):
+    if translation_map is not None:
+        routing_keys = {k for k, v in translation_map.items() if 'routing_field' in v and v['routing_field']}
+        return None if len(routing_keys) == 0 else routing_keys.pop()
 
 
 def _get_id_field_name(translation_map):

@@ -7,7 +7,7 @@
   "tika_content": {"name": "content", "default": ""},
   "extract_level": {"name": "extractionLevel", "default": 0},
   "extract_parent_id": {"name":  "parentDocument"},
-  "extract_root": {"name":  "rootDocument"},
+  "extract_root": {"name":  "rootDocument", "routing_field": true},
   "type": {"default": "Document"},
   "status": {"default": "INDEXED"},
   "nerTags": {"default": []},

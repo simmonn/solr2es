@@ -259,3 +259,7 @@ class TestCreateEsActions(unittest.TestCase):
     def test_create_es_action_without_id_field_in_translation_map(self):
         self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "123"}}\n{"id": "123", "foo": "bar"}',
                          create_es_actions('baz', [{'id': '123', 'foo': 'bar'}], {}))
+
+    def test_create_es_action_with_routing_field_in_translation_map(self):
+        self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "321", "_routing": "456"}}\n{"id": "321", "root_id": "456"}',
+                         create_es_actions('baz', [{'id': '321', 'root_id': '456'}], {'root_id': {'routing_field': True}}))
