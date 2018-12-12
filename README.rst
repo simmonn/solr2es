@@ -84,6 +84,12 @@ This will rename all the fields prefixed by *queue_* into *elasticsearch_*.
 
     {"ignored_field": {"ignore": true}}
 
+7. Use the property *routing_field* set to *true* to use one field for routing in elasticsearch. An exception will be raised if several fields are set to true.
+
+::
+
+    {"my_root_doc": {"routing_field": true}}
+
 
 **execution**
 
