@@ -170,6 +170,8 @@ def create_es_actions(index_name, solr_results, translation_map) -> str:
 def _get_routing_field_name(translation_map):
     if translation_map is not None:
         routing_keys = {k for k, v in translation_map.items() if 'routing_field' in v and v['routing_field']}
+        if len(routing_keys) > 1:
+            raise IllegalStateError('found several routing keys : %s' % routing_keys)
         return None if len(routing_keys) == 0 else routing_keys.pop()
 
 

@@ -3,7 +3,7 @@ import unittest
 
 import requests
 from elasticsearch import Elasticsearch
-from nose.tools import assert_raises
+from nose.tools import assert_raises, raises
 from pysolr import Solr, SolrError
 
 from solr2es.__main__ import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc, _tuples_to_dict, create_es_actions, \
@@ -263,3 +263,8 @@ class TestCreateEsActions(unittest.TestCase):
     def test_create_es_action_with_routing_field_in_translation_map(self):
         self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "321", "_routing": "456"}}\n{"id": "321", "root_id": "456"}',
                          create_es_actions('baz', [{'id': '321', 'root_id': '456'}], {'root_id': {'routing_field': True}}))
+
+    @raises(IllegalStateError)
+    def test_create_es_action_with_more_than_one_routing_field_in_translation_map(self):
+        create_es_actions('baz', [{'id': '321'}], {'route1': {'routing_field': True},
+                                                   'route2': {'routing_field': True}})
