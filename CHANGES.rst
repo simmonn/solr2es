@@ -1,6 +1,12 @@
 Changes
 =======
 
+v. 0.6
+------
+
+* error handling : logs ids that have failed when resuming from postgresql
+* adds a the possibility to specify a routing field in the translation map
+
 v. 0.5
 ------
 
