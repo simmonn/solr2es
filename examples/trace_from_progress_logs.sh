@@ -5,6 +5,7 @@ INPUT_FILE=$1
 function create_plot_file {
 cat > /tmp/trace_from_solr2es_logs.plot << EOF
 set xdata time
+set xtics rotate by -45
 set nokey
 set grid
 
@@ -13,6 +14,7 @@ set output "import_diagram.png"
 
 set datafile separator ";"
 set timefmt "%Y-%m-%d %H:%M:%S"
+set xtics format "%H:%M"
 
 set xlabel "time"
 set ylabel "nb processed rows"
