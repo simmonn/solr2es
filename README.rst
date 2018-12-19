@@ -41,6 +41,9 @@ Use
 
 **translation_map**
 
+.. image:: examples/migration.jpg
+    :alt: migration map
+    :align: center
 
 The purpose of a translation_map is to create a mapping between the fields coming from the queue (either Redis or Postgresql) to the ones inserted to Elasticsearch.
 
