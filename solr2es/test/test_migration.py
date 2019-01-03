@@ -104,7 +104,7 @@ class TestMigration(unittest.TestCase):
         TestMigration.solr.add([{"id": "142", "my_bar": "content"}])
 
         self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"my_baz": {"type": "text"}}}}}',
-                             {"my_bar": {'name': "my_baz"}})
+                             TranslationMap({"my_bar": {'name': "my_baz"}}))
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual(doc['my_baz'], "content")
@@ -115,7 +115,7 @@ class TestMigration(unittest.TestCase):
         TestMigration.solr.add([{"id": "142", "nested_field": "content"}])
 
         self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-                             {"nested_field": {"name": "nested.a.b.c"}})
+                             TranslationMap({"nested_field": {"name": "nested.a.b.c"}}))
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual({'a': {'b': {'c': 'content'}}}, doc['nested'])
@@ -128,7 +128,7 @@ class TestMigration(unittest.TestCase):
         TestMigration.solr.add([{"id": "142", "nested_field1": "content1", "nested_field2": "content2"}])
 
         self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-                             {"nested_field1": {"name": "nested.a.b"}, "nested_field2": {"name": "nested.a.c"}})
+                             TranslationMap({"nested_field1": {"name": "nested.a.b"}, "nested_field2": {"name": "nested.a.c"}}))
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual({'a': {'b': 'content1', 'c': 'content2'}}, doc['nested'])
@@ -138,7 +138,7 @@ class TestMigration(unittest.TestCase):
 
         self.solr2es.migrate('foo',
                              '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-                             {re.compile(r"nested_(.*)"): {"name": "nested.\\1"}})
+                             TranslationMap({re.compile(r"nested_(.*)"): {"name": "nested.\\1"}}))
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual({'field1': 'content1', 'field2': 'content2'}, doc['nested'])
@@ -151,14 +151,14 @@ class TestMigration(unittest.TestCase):
         with assert_raises(IllegalStateError) as e:
             self.solr2es.migrate('foo',
                                  '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-                                 {re.compile(r"flag_field_(.*)"): {"name": "flag1_\\1"},
-                                  re.compile(r"flag_(.*)"): {"name": "flag2_\\1"}})
+                                 TranslationMap({re.compile(r"flag_field_(.*)"): {"name": "flag1_\\1"},
+                                  re.compile(r"flag_(.*)"): {"name": "flag2_\\1"}}))
         self.assertTrue('Too many doc fields matching key flag_field_test in translation map' in str(e.exception))
 
     def test_migrate_with_multiple_matching_fields_one_exact(self):
         TestMigration.solr.add([{"id": "678", "title": "this is a title"}])
 
-        self.solr2es.migrate('foo', None, {"title": {"name": "new_title"}, "ti(.*)": {"name": "regexp_title"}})
+        self.solr2es.migrate('foo', None, TranslationMap({"title": {"name": "new_title"}, "ti(.*)": {"name": "regexp_title"}}))
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="678")
         self.assertEqual('this is a title', doc['new_title'])
@@ -167,7 +167,7 @@ class TestMigration(unittest.TestCase):
         TestMigration.solr.add([{"id": "142"}])
 
         self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-                             {"new_field": {'default': 'john doe'}, 'field1': {'name': 'field1'}})
+                             TranslationMap({"new_field": {'default': 'john doe'}, 'field1': {'name': 'field1'}}))
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual('john doe', doc['new_field'])
@@ -176,8 +176,8 @@ class TestMigration(unittest.TestCase):
         TestMigration.solr.add([{"id": "142"}])
 
         self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-                             {"new_field1": {'default': 'john doe'},
-                              'new_field2': {'default': 'bob smith'}})
+                             TranslationMap({"new_field1": {'default': 'john doe'},
+                              'new_field2': {'default': 'bob smith'}}))
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual('john doe', doc['new_field1'])
@@ -189,7 +189,7 @@ class TestMigration(unittest.TestCase):
         TestMigration.solr.add([{"id": "142", "field1": "content1"}])
 
         self.solr2es.migrate('foo', '{"mappings": {"doc": {"properties": {"nested": {"type": "object"}}}}}',
-                             {"field1": {'default': 'content2'}})
+                             TranslationMap({"field1": {'default': 'content2'}}))
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="142")
         self.assertEqual('content1', doc['field1'])
@@ -197,7 +197,7 @@ class TestMigration(unittest.TestCase):
     def test_migrate_with_ignored_fields(self):
         TestMigration.solr.add([{"id": "12"}])
 
-        self.solr2es.migrate('foo', {}, {'_version_': {'ignore': True}})
+        self.solr2es.migrate('foo', {}, TranslationMap({'_version_': {'ignore': True}}))
 
         doc = self.es.get_source(index='foo', doc_type=DEFAULT_ES_DOC_TYPE, id="12")
         self.assertEqual({"id": "12"}, doc)
@@ -254,25 +254,25 @@ class TestTuplesToDict(unittest.TestCase):
 class TestCreateEsActions(unittest.TestCase):
     def test_create_es_actions(self):
         self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "123"}}\n{"my_id": "123", "foo": "bar"}',
-                         create_es_actions('baz', [{'my_id': '123', 'foo': 'bar'}], {'my_id': {'name': '_id'}}))
+                         create_es_actions('baz', [{'my_id': '123', 'foo': 'bar'}], TranslationMap({'my_id': {'name': '_id'}})))
 
     def test_create_es_action_without_id_field_in_translation_map(self):
         self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "123"}}\n{"id": "123", "foo": "bar"}',
-                         create_es_actions('baz', [{'id': '123', 'foo': 'bar'}], {}))
+                         create_es_actions('baz', [{'id': '123', 'foo': 'bar'}], TranslationMap()))
 
     def test_create_es_action_with_routing_field_in_translation_map(self):
         self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "321", "_routing": "456"}}\n{"id": "321", "root_id": "456"}',
-                         create_es_actions('baz', [{'id': '321', 'root_id': '456'}], {'root_id': {'routing_field': True}}))
+                         create_es_actions('baz', [{'id': '321', 'root_id': '456'}], TranslationMap({'root_id': {'routing_field': True}})))
 
     def test_create_es_action_with_routing_field_false(self):
         self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "808"}}\n{"id": "808", "root_id": "654"}',
-                         create_es_actions('baz', [{'id': '808', 'root_id': '654'}], {'root_id': {'routing_field': False}}))
+                         create_es_actions('baz', [{'id': '808', 'root_id': '654'}], TranslationMap({'root_id': {'routing_field': False}})))
 
     def test_create_es_action_with_nonexistent_routing_field(self):
         self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "808"}}\n{"id": "808"}',
-                         create_es_actions('baz', [{'id': '808'}], {'root_id': {'routing_field': True}}))
+                         create_es_actions('baz', [{'id': '808'}], TranslationMap({'root_id': {'routing_field': True}})))
 
     @raises(IllegalStateError)
     def test_create_es_action_with_more_than_one_routing_field_in_translation_map(self):
-        create_es_actions('baz', [{'id': '321'}], {'route1': {'routing_field': True},
-                                                   'route2': {'routing_field': True}})
+        create_es_actions('baz', [{'id': '321'}], TranslationMap({'route1': {'routing_field': True},
+                                                   'route2': {'routing_field': True}}))

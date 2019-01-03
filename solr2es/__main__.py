@@ -33,11 +33,21 @@ class IllegalStateError(RuntimeError):
 
 
 class TranslationMap(object):
-    def __init__(self, translation_map_dict) -> None:
-        self.default_values = {k: v['default'] for k, v in translation_map_dict.items() if 'default' in v}
-        self.names = {k: v['name'] for k, v in translation_map_dict.items() if 'name' in v and type(k) == str}
-        self.regexps = {k: v['name'] for k, v in translation_map_dict.items() if 'name' in v and type(k) != str}
-        self.ignores = {k for k, v in translation_map_dict.items() if 'ignore' in v and v['ignore']}
+    def __init__(self, translation_map_dict=None) -> None:
+        _tm = dict() if translation_map_dict is None else translation_map_dict
+        self.default_values = {k: v['default'] for k, v in _tm.items() if 'default' in v}
+        self.names = {k: v['name'] for k, v in _tm.items() if 'name' in v and type(k) == str}
+        self.regexps = {k: v['name'] for k, v in _tm.items() if 'name' in v and type(k) != str}
+        self.ignores = {k for k, v in _tm.items() if 'ignore' in v and v['ignore']}
+        routing_keys = {k for k, v in _tm.items() if 'routing_field' in v and v['routing_field']}
+        if len(routing_keys) > 1:
+            raise IllegalStateError('found several routing keys : %s' % routing_keys)
+        self.routing_key_field_name = None if len(routing_keys) == 0 else routing_keys.pop()
+
+    def get_id_field_name(self) -> str:
+        set_id = {k for k, v in self.names.items() if v == '_id'}
+        id_key = set_id.pop() if len(set_id) > 0 else DEFAULT_ID_FIELD
+        return id_key
 
 
 class Solr2Es(object):
@@ -47,15 +57,14 @@ class Solr2Es(object):
         self.es = es
         self.refresh = refresh
 
-    def migrate(self, index_name, mapping=None, translation_map=None, solr_filter_query='*',
+    def migrate(self, index_name, mapping=None, translation_map=TranslationMap(), solr_filter_query='*',
                 sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10) -> int:
-        translation_dict = dict() if translation_map is None else translation_map
         nb_results = 0
         if not self.es.indices.exists([index_name]):
             self.es.indices.create(index_name, body=mapping)
         for results in self.produce_results(solr_filter_query=solr_filter_query,
                                             sort_field=sort_field, solr_rows_pagination=solr_rows_pagination):
-            actions = create_es_actions(index_name, results, translation_dict)
+            actions = create_es_actions(index_name, results, translation_map)
             response = self.es.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
             if response['errors']:
@@ -93,15 +102,14 @@ class Solr2EsAsync(object):
         self.aes = aes
         self.refresh = refresh
 
-    async def migrate(self, index_name, es_index_body_str=None, translation_map=None, solr_filter_query='*', sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10) -> int:
-        translation_dict = dict() if translation_map is None else translation_map
+    async def migrate(self, index_name, es_index_body_str=None, translation_map=TranslationMap(), solr_filter_query='*', sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10) -> int:
         if not await self.aes.indices.exists([index_name]):
             await self.aes.indices.create(index_name, body=es_index_body_str)
 
         nb_results = 0
         async for results in self.produce_results(solr_filter_query=solr_filter_query,
                                                   sort_field=sort_field, solr_rows_pagination=solr_rows_pagination):
-            actions = create_es_actions(index_name, results, translation_dict)
+            actions = create_es_actions(index_name, results, translation_map)
             await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
         return nb_results
@@ -129,8 +137,7 @@ class Solr2EsAsync(object):
                     cursor_ended = True
         LOGGER.info('processed %s documents', nb_results)
 
-    async def resume(self, queue, index_name, es_index_body_str=None, translation_map=None):
-        translation_dict = dict() if translation_map is None else translation_map
+    async def resume(self, queue, index_name, es_index_body_str=None, translation_map=TranslationMap()):
         if not await self.aes.indices.exists([index_name]):
             await self.aes.indices.create(index_name, body=es_index_body_str)
 
@@ -142,50 +149,31 @@ class Solr2EsAsync(object):
         while results:
             try:
                 results = await queue.pop()
-                actions = create_es_actions(index_name, results, translation_dict)
+                actions = create_es_actions(index_name, results, translation_map)
                 await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
                 nb_results += len(results)
                 if nb_results % 10000 == 0:
                     LOGGER.info('read %s docs of %s (%.2f %% done)', nb_results, nb_total,
                                 (100 * nb_results) / nb_total)
             except Exception:
-                id_key = _get_id_field_name(translation_map)
-                LOGGER.exception('exception while reading results %s' % list(r.get(id_key) for r in results))
+                LOGGER.exception('exception while reading results %s' % list(
+                    r.get(translation_map.get_id_field_name()) for r in results))
         return nb_results
 
 
 def create_es_actions(index_name, solr_results, translation_map) -> str:
-    tm = TranslationMap(translation_map)
-
-    id_key = _get_id_field_name(translation_map)
-    routing_key = _get_routing_field_name(translation_map)
+    routing_key = translation_map.routing_key_field_name
 
     def create_action(row):
-        index_params = {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row[id_key]}
+        index_params = {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row[translation_map.get_id_field_name()]}
         if routing_key is not None and routing_key in row:
             index_params['_routing'] = row[routing_key]
         return {'index': index_params}
 
     results = [(create_action(row),
-                translate_doc(row, tm))
+                translate_doc(row, translation_map))
                 for row in solr_results]
     return '\n'.join(list(map(lambda d: dumps(d), chain(*results))))
-
-
-def _get_routing_field_name(translation_map):
-    if translation_map is not None:
-        routing_keys = {k for k, v in translation_map.items() if 'routing_field' in v and v['routing_field']}
-        if len(routing_keys) > 1:
-            raise IllegalStateError('found several routing keys : %s' % routing_keys)
-        return None if len(routing_keys) == 0 else routing_keys.pop()
-
-
-def _get_id_field_name(translation_map):
-    if translation_map is None:
-        return DEFAULT_ID_FIELD
-    set_id = {k for k, v in translation_map.items() if v.get('name') == '_id'}
-    id_key = set_id.pop() if len(set_id) > 0 else DEFAULT_ID_FIELD
-    return id_key
 
 
 def translate_doc(row, translation_map) -> dict:
@@ -412,7 +400,7 @@ def main():
             core_name = arg
 
         if opt == '--translationmap':
-            translationmap = _get_dict_from_string_or_file(arg)
+            translationmap = TranslationMap(_get_dict_from_string_or_file(arg))
 
         if opt == '--esmapping':
             esmapping = _get_dict_from_string_or_file(arg)
