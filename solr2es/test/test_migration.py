@@ -7,7 +7,7 @@ from nose.tools import assert_raises, raises
 from pysolr import Solr, SolrError
 
 from solr2es.__main__ import Solr2Es, DEFAULT_ES_DOC_TYPE, translate_doc, _tuples_to_dict, create_es_actions, \
-    IllegalStateError
+    IllegalStateError, TranslationMap
 
 
 class TestMigration(unittest.TestCase):
@@ -205,22 +205,22 @@ class TestMigration(unittest.TestCase):
 
 class TestTranslateDoc(unittest.TestCase):
     def test_with_nested_field(self):
-        self.assertEqual({'a': {'b': {'c': 'value'}}}, translate_doc({'a_b_c': 'value'}, {'a_b_c': 'a.b.c'}, {}, {}, {}))
+        self.assertEqual({'a': {'b': {'c': 'value'}}}, translate_doc({'a_b_c': 'value'}, TranslationMap({'a_b_c': {'name': 'a.b.c'}})))
 
     def test_with_nested_fields_and_value_array(self):
-        self.assertEqual({'a': {'b': 'value1'}}, translate_doc({'a_b': ['value1']}, {'a_b': 'a.b'}, {}, {}, {}))
+        self.assertEqual({'a': {'b': 'value1'}}, translate_doc({'a_b': ['value1']}, TranslationMap({'a_b': {'name': 'a.b'}})))
 
     def test_with_empty_array_as_default_value(self):
-        self.assertEqual({'array_field': []}, translate_doc({}, {}, {}, {'array_field': []}, {}))
+        self.assertEqual({'array_field': []}, translate_doc({}, TranslationMap({'array_field': {'default': []}})))
 
     def test_with_sibling_nested_fields(self):
         self.assertEqual({'a': {'b': 'value1', 'c': 'value2'}},
-                         translate_doc({'a_b': 'value1', 'a_c': 'value2'}, {'a_b': 'a.b', 'a_c': 'a.c'}, {}, {}, {}))
+                         translate_doc({'a_b': 'value1', 'a_c': 'value2'}, TranslationMap({'a_b': {'name': 'a.b'}, 'a_c': {'name': 'a.c'}})))
 
     def test_with_sibling_nested_fields_in_depth(self):
         self.assertEqual({'a': {'b': {'c': {'d': 'value1'}, 'e': 'value2'}}},
                          translate_doc({'a_b_c_d': 'value1', 'a_b_e': 'value2'},
-                                       {'a_b_c_d': 'a.b.c.d', 'a_b_e': 'a.b.e'}, {}, {}, {}))
+                                       TranslationMap({'a_b_c_d': {'name': 'a.b.c.d'}, 'a_b_e': {'name': 'a.b.e'}})))
 
 
 class TestTuplesToDict(unittest.TestCase):
