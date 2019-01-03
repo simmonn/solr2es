@@ -180,7 +180,7 @@ def create_es_actions(index_name, solr_results, translation_map) -> str:
 def translate_doc(row, translation_map) -> dict:
     def translate(key, value):
         translated_key = _translate_key(key, translation_map.names, translation_map.regexps)
-        if key in translation_map.multivalued_ignored:
+        if key in translation_map.multivalued_ignored or (type(value) is list and len(value) == 1):
             translated_value = value[0]
             if len(value) > 1:
                 LOGGER.warning('multivalued field in doc id=%s key=%s size=%d', row[translation_map.get_id_field_name()], key, len(value))
