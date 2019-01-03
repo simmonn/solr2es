@@ -1,6 +1,13 @@
 Changes
 =======
 
+v. 0.7
+------
+
+* multivalued field : flatten the array if it has one value
+* multivalued field : ignore multi valuated field in translation map
+* multivalued field : copy the array into elasticsearch
+
 v. 0.6
 ------
 
