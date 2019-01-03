@@ -73,7 +73,6 @@ If the queue record has a field *nested_a_b*, the Elasticsearch record will get 
 
     {"nested_a_b": {"name": "nested.a.b"}}
 
-
 5. Use the property *name* with some regex groups capture to rename a bulk of queue fields in Elasticsearch by adding `[regexp]` at the beginning of the field.
 This will rename all the fields prefixed by *queue_* into *elasticsearch_*.
 
@@ -92,6 +91,13 @@ This will rename all the fields prefixed by *queue_* into *elasticsearch_*.
 ::
 
     {"my_root_doc": {"routing_field": true}}
+
+8. Use the property *multivalued* set to *false* to ignore multi valued array field. Get the first value instead. By default the array is copied.
+
+::
+
+    {"my_array": {"multivalued": false}}
+
 
 
 **execution**

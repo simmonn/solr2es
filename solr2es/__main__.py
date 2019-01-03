@@ -39,6 +39,7 @@ class TranslationMap(object):
         self.names = {k: v['name'] for k, v in _tm.items() if 'name' in v and type(k) == str}
         self.regexps = {k: v['name'] for k, v in _tm.items() if 'name' in v and type(k) != str}
         self.ignores = {k for k, v in _tm.items() if 'ignore' in v and v['ignore']}
+        self.multivalued_ignored = {k for k, v in _tm.items() if 'multivalued' in v and not v['multivalued']}
         routing_keys = {k for k, v in _tm.items() if 'routing_field' in v and v['routing_field']}
         if len(routing_keys) > 1:
             raise IllegalStateError('found several routing keys : %s' % routing_keys)
@@ -179,7 +180,12 @@ def create_es_actions(index_name, solr_results, translation_map) -> str:
 def translate_doc(row, translation_map) -> dict:
     def translate(key, value):
         translated_key = _translate_key(key, translation_map.names, translation_map.regexps)
-        translated_value = value[0] if type(value) is list and len(value) > 0 else value
+        if key in translation_map.multivalued_ignored:
+            translated_value = value[0]
+            if len(value) > 1:
+                LOGGER.warning('multivalued field in doc id=%s key=%s size=%d', row[translation_map.get_id_field_name()], key, len(value))
+        else:
+            translated_value = value
 
         if '.' in translated_key:
             translated_value = reduce(lambda i, acc: (acc, i), reversed(translated_key.split('.')[1:] + [translated_value]))
@@ -209,7 +215,7 @@ def _translate_key(key, translation_names, translation_regexps) -> str:
 def _tuples_to_dict(tuples) -> dict:
     ret = dict()
     for k, v in tuples:
-        if type(v) is tuple or (type(v) is list and len(v) > 0):
+        if type(v) is tuple:
             d = _tuples_to_dict(v) if type(v[0]) is tuple else _tuples_to_dict([v])
             ret[k] = deep_update(ret.get(k, {}), d)
         else:

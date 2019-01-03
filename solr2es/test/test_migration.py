@@ -207,11 +207,17 @@ class TestTranslateDoc(unittest.TestCase):
     def test_with_nested_field(self):
         self.assertEqual({'a': {'b': {'c': 'value'}}}, translate_doc({'a_b_c': 'value'}, TranslationMap({'a_b_c': {'name': 'a.b.c'}})))
 
-    def test_with_nested_fields_and_value_array(self):
-        self.assertEqual({'a': {'b': 'value1'}}, translate_doc({'a_b': ['value1']}, TranslationMap({'a_b': {'name': 'a.b'}})))
-
     def test_with_empty_array_as_default_value(self):
         self.assertEqual({'array_field': []}, translate_doc({}, TranslationMap({'array_field': {'default': []}})))
+
+    def test_with_multivalued_field(self):
+        self.assertEqual({'mv_field': ['value1', 'value2']}, translate_doc({'mv_field': ['value1', 'value2']}, TranslationMap({})))
+
+    def test_with_multivalued_field_ignored(self):
+        self.assertEqual({'id': '1234', 'ignored_mv_field': 'value1'}, translate_doc({'id': '1234', 'ignored_mv_field': ['value1', 'value2']}, TranslationMap({'ignored_mv_field': {'multivalued': False}})))
+
+    def test_with_nested_fields_and_multivalued_field(self):
+        self.assertEqual({'a': {'b': ['value1']}}, translate_doc({'a_b': ['value1']}, TranslationMap({'a_b': {'name': 'a.b'}})))
 
     def test_with_sibling_nested_fields(self):
         self.assertEqual({'a': {'b': 'value1', 'c': 'value2'}},
@@ -246,9 +252,6 @@ class TestTuplesToDict(unittest.TestCase):
         self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2', 'd': 'content3'}}},
                          _tuples_to_dict([('nested', ('a', ('b', 'content1'))),
                                           ('nested', ('a', (('c', 'content2'), ('d', 'content3'))))]))
-        self.assertEqual({'nested': {'a': {'b': 'content1', 'c': 'content2', 'd': 'content3'}}},
-                         _tuples_to_dict([('nested', ('a', ('b', 'content1'))),
-                                          ('nested', ('a', [('c', 'content2'), ('d', 'content3')]))]))
 
 
 class TestCreateEsActions(unittest.TestCase):
