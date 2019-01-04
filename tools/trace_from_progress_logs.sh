@@ -11,10 +11,11 @@ set grid
 
 set term png
 set output "import_diagram.png"
+set style line 1 dt 0
 
 set datafile separator ";"
 set timefmt "%Y-%m-%d %H:%M:%S"
-set xtics format "%H:%M"
+set xtics format "%d/%m"
 
 set xlabel "time"
 set ylabel "nb processed rows"
@@ -23,7 +24,7 @@ $1
 EOF
 }
 
-PLOT_LINE='plot '
+PLOT_LINE="plot '/tmp/ref.csv' using 1:2 w lines linestyle 1,"
 
 for pid in $(grep "docs of" $INPUT_FILE | sed 's/.*solr2es\]\[\([0-9]*\)\].*/\1/g' | sort | uniq )
 do
@@ -33,6 +34,9 @@ done
 
 PLOT_LINE=$(echo $PLOT_LINE| sed 's/.$//')
 PLOT_LINE+=' title "Data import" w lines'
+
+SCRIPT_PATH=$(dirname "$0")
+${SCRIPT_PATH}/gen_curve.py > /tmp/ref.csv
 create_plot_file "$PLOT_LINE"
 
 gnuplot /tmp/trace_from_solr2es_logs.plot
