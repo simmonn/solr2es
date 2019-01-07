@@ -6,7 +6,7 @@ start_date = datetime.datetime(2019, 1, 3, 15, 0, 38)
 
 
 def f(secs):
-    return int(600 * secs ** 0.51)
+    return int(635 * secs ** 0.5)
 
 
 for seconds in range(0, 9 * 24 * 3600, 3600):
