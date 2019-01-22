@@ -1,5 +1,8 @@
+import logging
 from asyncio import ensure_future, wait_for, futures
 from json import dumps, loads
+
+import psycopg2
 import sqlalchemy as sa
 
 from psycopg2.extras import execute_values
@@ -66,8 +69,11 @@ class PostgresqlQueueAsync(object):
     async def push(self, value_list) -> None:
         async with self.postgresql.acquire() as conn:
             values = list(({'id': r[self.unique_id], 'json': dumps(r)} for r in value_list))
-            await conn.execute(insert(queue_table).values(values).on_conflict_do_nothing(index_elements=['id']))
-            await conn.execute('NOTIFY solr2es, \'notify\'')
+            try:
+                await conn.execute(insert(queue_table).values(values).on_conflict_do_nothing(index_elements=['id']))
+                await conn.execute('NOTIFY solr2es, \'notify\'')
+            except psycopg2.InternalError:
+                logging.getLogger('solr2es').exception('error with %s' % [v['id'] for v in values])
 
     async def create_table_if_not_exists(self):
         async with self.postgresql.acquire() as conn:
