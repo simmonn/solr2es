@@ -150,6 +150,8 @@ class Solr2EsAsync(object):
         while results:
             try:
                 results = await queue.pop()
+                if results == []:
+                    break
                 actions = create_es_actions(index_name, results, translation_map)
                 await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
                 nb_results += len(results)
