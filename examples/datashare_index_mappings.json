@@ -49,6 +49,10 @@
       "nerTags": {
         "type": "keyword"
       },
+      "tags": {
+        "type": "keyword",
+        "normalizer": "keyword_lowercase"
+      },
       "metadata": {
         "type": "object"
       },
