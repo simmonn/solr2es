@@ -136,6 +136,7 @@ To build and run tests you can make :
     virtualenv --python=python3.6 venv
     source venv/bin/activate
     python setup.py develop
+    pip install -e ".[dev]"
     python setup.py test
 
 To release :
