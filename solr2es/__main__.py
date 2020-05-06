@@ -146,16 +146,16 @@ class Solr2EsAsync(object):
         nb_total = await queue.size()
         LOGGER.info('found %s documents', nb_total)
 
-        results = ['']
+        results = await queue.pop()
         while results:
             try:
-                results = await queue.pop()
                 actions = create_es_actions(index_name, results, translation_map)
                 await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
                 nb_results += len(results)
                 if nb_results % 10000 == 0:
                     LOGGER.info('read %s docs of %s (%.2f %% done)', nb_results, nb_total,
                                 (100 * nb_results) / nb_total)
+                results = await queue.pop()
             except Exception:
                 LOGGER.exception('exception while reading results %s' % list(
                     r.get(translation_map.get_id_field_name()) for r in results))
