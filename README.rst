@@ -36,6 +36,17 @@ Here are the option to use as a command line :
     :align: center
 
 
+Installation
+------------
+::
+
+    sudo add-apt-repository ppa:deadsnakes/ppa
+    sudo apt-get install python3.6 python3.6-dev libpq-dev
+    virtualenv --python=python3.6 venv
+    source venv/bin/activate
+    pip install solr2es
+
+
 Translation map
 ---------------
 
