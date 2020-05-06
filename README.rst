@@ -36,10 +36,8 @@ Here are the option to use as a command line :
     :align: center
 
 
-Use
----
-
-**translation_map**
+Translation map
+---------------
 
 .. image:: examples/migration.jpg
     :alt: migration map
@@ -100,7 +98,9 @@ This will rename all the fields prefixed by *queue_* into *elasticsearch_*.
 
 
 
-**execution**
+Execution
+---------
+
 
 1. Execute a dump from Solr into Postgresql specifying the Solr host, the Solr core, the Solr id and the Postgresql DSN
 
@@ -115,8 +115,8 @@ This will rename all the fields prefixed by *queue_* into *elasticsearch_*.
     solr2es --postgresqldsn 'dbname=solr2es user=test password=test host=localhost' --index es-index --translationmap @examples/translation-map.json --esmapping @examples/datashare_index_mappings.json --essetting @examples/datashare_index_settings.json -r -a
 
 
-Develop
--------
+Test
+----
 
 To build and run tests you can make :
 
@@ -131,7 +131,7 @@ To release :
 
 ::
 
-    python setup.py  sdist bdist_egg upload
+    python setup.py sdist bdist_egg upload
 
 
 Misc
