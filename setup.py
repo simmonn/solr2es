@@ -20,6 +20,7 @@ install_requires = [
     'pysolr==3.8.1',
     'elasticsearch==6.3.1',
     'elasticsearch-async==6.2.0',
+    'redis==3.5.0',
     'asyncio_redis==0.15.1',
     'aiohttp==3.6.2',
     'aiopg==0.15',
