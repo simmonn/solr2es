@@ -97,3 +97,7 @@ class PostgresqlQueueAsync(object):
         async with self.postgresql.acquire() as conn:
             result_proxy = await conn.execute(SIZE_SQL)
             return await result_proxy.scalar()
+
+    async def close(self):
+        self.postgresql.close()
+        await self.postgresql.wait_closed()

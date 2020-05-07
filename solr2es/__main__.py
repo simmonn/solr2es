@@ -290,8 +290,8 @@ async def aioresume_from_pgsql(pgsqldsn, eshost, name, translationmap, es_index_
     es_index_body_str = None if es_index_body is None else dumps(es_index_body)
 
     elasticsearch = AsyncElasticsearch([eshost], AsyncTransport, timeout=60)
-    await Solr2EsAsync(None, elasticsearch, None).\
-        resume(psql_queue, name, es_index_body_str, translationmap)
+    await Solr2EsAsync(None, elasticsearch, None).resume(psql_queue, name, es_index_body_str, translationmap)
+    await psql_queue.close()
     await elasticsearch.transport.close()
 
 
