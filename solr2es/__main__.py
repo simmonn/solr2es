@@ -111,8 +111,12 @@ class Solr2EsAsync(object):
         async for results in self.produce_results(solr_filter_query=solr_filter_query,
                                                   sort_field=sort_field, solr_rows_pagination=solr_rows_pagination):
             actions = create_es_actions(index_name, results, translation_map)
-            await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
+            response = await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
+            if response['errors']:
+                for err in response['items']:
+                    LOGGER.warning(err)
+                nb_results -= len(response['items'])
         return nb_results
 
     async def produce_results(self, solr_filter_query='*', sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10):
@@ -150,8 +154,12 @@ class Solr2EsAsync(object):
         while results:
             try:
                 actions = create_es_actions(index_name, results, translation_map)
-                await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
+                response = await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
                 nb_results += len(results)
+                if response['errors']:
+                    for err in response['items']:
+                        LOGGER.warning(err)
+                    nb_results -= len(response['items'])
                 if nb_results % 10000 == 0:
                     LOGGER.info('read %s docs of %s (%.2f %% done)', nb_results, nb_total,
                                 (100 * nb_results) / nb_total)
