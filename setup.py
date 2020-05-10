@@ -19,19 +19,18 @@ install_requires = [
     'idna==2.7', # to avoid conflicts between v2.8 and pysolr
     'pysolr==3.8.1',
     'elasticsearch==6.3.1',
-    'aiohttp==2.3.10',
     'elasticsearch-async==6.2.0',
-    'redis==2.10.6',
+    'redis==3.5.0',
     'asyncio_redis==0.15.1',
-    'psycopg2-binary==2.7.6.1',
+    'aiohttp==3.6.2',
     'aiopg==0.15',
     'sqlalchemy==1.2.14'
 ]
 
 tests_require = [
-    'nose',
-    'asynctest',
-    'pytz',
+    'nose==1.3.7',
+    'asynctest==0.12.2',
+    'pytz==2018.7',
 ]
 setup(
     name=NAME,
@@ -52,7 +51,9 @@ setup(
     zip_safe=False,
     test_suite="nose.collector",  
     install_requires=install_requires,
-    tests_require=tests_require,
+    extras_require={
+        'dev': tests_require,
+    },
     entry_points={
           'console_scripts': [
               'solr2es = solr2es.__main__:main'

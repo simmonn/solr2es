@@ -16,7 +16,7 @@ class TestPostgresqlQueueAsync(asynctest.TestCase):
     async def tearDown(self):
         async with self.engine.acquire() as conn:
             await conn.execute('TRUNCATE solr2es_queue')
-        self.engine.close()
+        await self.pgsql_queue.close()
 
     async def test_push_loop(self):
         async def producer():

@@ -28,13 +28,13 @@ jobs:
       - restore_cache:
           keys:
           - v1-dependencies-{{ checksum "setup.py" }}
-          - v1-dependencies-
 
       - run:
           name: install dependencies
           command: |
             python3 -m venv venv
             . venv/bin/activate
+            pip install --upgrade pip
             python setup.py develop 
 
       - run:
@@ -50,6 +50,7 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
+            pip install -e ".[dev]"
             python setup.py test
 
       - store_artifacts:
