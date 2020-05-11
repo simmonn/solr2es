@@ -1,3 +1,4 @@
+import hashlib
 import re
 import unittest
 
@@ -278,9 +279,19 @@ class TestCreateEsActions(unittest.TestCase):
         self.assertEqual([({'index': {'_index': 'baz', '_type': 'doc', '_id': '808'}}, {'id': '808'})],
                          create_es_actions('baz', [{'id': '808'}], TranslationMap({'root_id': {'routing_field': True}})))
 
-    def test_create_es_action_with_multiple_paths(self):
-        self.assertEqual([({'index': {'_index': 'baz', '_type': 'doc', '_id': '808'}}, {'id': '808', 'my_field': 'value_01'})],
+    def test_create_es_action_with_multivalued_field(self):
+        self.assertEqual([
+            ({'index': {'_index': 'baz', '_type': 'doc', '_id': '808'}}, {'id': '808', 'my_field': 'value_01'}),
+            ({'index': {'_index': 'baz', '_type': 'doc', '_id': hashlib.sha256(b'value_02').hexdigest()}}, {'my_field': 'value_02', 'documentId': '808', 'type': 'Duplicate'})
+        ],
                          create_es_actions('baz', [{'id': '808', 'my_field': ['value_01', 'value_02']}], TranslationMap({'my_field': {'multivalued': False}})))
+
+    def test_create_es_action_with_multivalued_and_named_field(self):
+        self.assertEqual([
+            ({'index': {'_index': 'baz', '_type': 'doc', '_id': '808'}}, {'id': '808', 'path': 'value_01'}),
+            ({'index': {'_index': 'baz', '_type': 'doc', '_id': hashlib.sha256(b'value_02').hexdigest()}}, {'path': 'value_02', 'documentId': '808', 'type': 'Duplicate'})
+        ],
+                        create_es_actions('baz', [{'id': '808', 'my_field': ['value_01', 'value_02']}], TranslationMap({'my_field': {'multivalued': False, 'name': 'path'}})))
 
     @raises(IllegalStateError)
     def test_create_es_action_with_more_than_one_routing_field_in_translation_map(self):

@@ -1,5 +1,6 @@
 import asyncio
 import getopt
+import hashlib
 import logging
 import re
 import sys
@@ -65,8 +66,8 @@ class Solr2Es(object):
             self.es.indices.create(index_name, body=mapping)
         for results in self.produce_results(solr_filter_query=solr_filter_query,
                                             sort_field=sort_field, solr_rows_pagination=solr_rows_pagination):
-            actionsAsList = create_es_actions(index_name, results, translation_map)
-            actions = '\n'.join(list(map(lambda d: dumps(d), chain(*actionsAsList))))
+            actions_as_list = create_es_actions(index_name, results, translation_map)
+            actions = '\n'.join(list(map(lambda d: dumps(d), chain(*actions_as_list))))
             response = self.es.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
             if response['errors']:
@@ -111,8 +112,8 @@ class Solr2EsAsync(object):
         nb_results = 0
         async for results in self.produce_results(solr_filter_query=solr_filter_query,
                                                   sort_field=sort_field, solr_rows_pagination=solr_rows_pagination):
-            actionsAsList = create_es_actions(index_name, results, translation_map)
-            actions = '\n'.join(list(map(lambda d: dumps(d), chain(*actionsAsList))))
+            actions_as_list = create_es_actions(index_name, results, translation_map)
+            actions = '\n'.join(list(map(lambda d: dumps(d), chain(*actions_as_list))))
             response = await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
             nb_results += len(results)
             if response['errors']:
@@ -158,8 +159,8 @@ class Solr2EsAsync(object):
                 results = await queue.pop()
                 if results == []:
                     break
-                actionsAsList = create_es_actions(index_name, results, translation_map)
-                actions = '\n'.join(list(map(lambda d: dumps(d), chain(*actionsAsList))))
+                actions_as_list = create_es_actions(index_name, results, translation_map)
+                actions = '\n'.join(list(map(lambda d: dumps(d), chain(*actions_as_list))))
                 response = await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
                 nb_results += len(results)
                 if response['errors']:
@@ -177,16 +178,39 @@ class Solr2EsAsync(object):
 
 def create_es_actions(index_name, solr_results, translation_map) -> list:
     routing_key = translation_map.routing_key_field_name
+    multivalued_ignored_fields = translation_map.multivalued_ignored
 
-    def create_action(row):
+    def create_action(row) -> dict:
         index_params = {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row[translation_map.get_id_field_name()]}
         if routing_key is not None and routing_key in row:
             index_params['_routing'] = row[routing_key]
         return {'index': index_params}
 
-    return [(create_action(row),
+    def has_duplicates(results) -> bool:
+        for result in results:
+            for field in multivalued_ignored_fields:
+                if type(result[field]) is list:
+                    return True
+        return False
+
+    def create_duplicate_actions(index_name, row) -> list:
+        actions = []
+        for field in multivalued_ignored_fields:
+            translated_key = _translate_key(field, translation_map.names, translation_map.regexps)
+            for value in row[field][1:]:
+                actions.append((
+                    {'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': hashlib.sha256(str(value).encode('utf-8')).hexdigest()}},
+                    {translated_key: value, 'documentId': row[translation_map.get_id_field_name()], 'type': 'Duplicate'}
+                ))
+        return actions
+
+    results = [(create_action(row),
                 translate_doc(row, translation_map))
                 for row in solr_results]
+    if has_duplicates(solr_results):
+        for row in solr_results:
+            results += create_duplicate_actions(index_name, row)
+    return results
 
 
 def translate_doc(row, translation_map) -> dict:
