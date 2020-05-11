@@ -259,24 +259,28 @@ class TestTuplesToDict(unittest.TestCase):
 
 class TestCreateEsActions(unittest.TestCase):
     def test_create_es_actions(self):
-        self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "123"}}\n{"my_id": "123", "foo": "bar"}',
+        self.assertEqual([({'index': {'_index': 'baz', '_type': 'doc', '_id': '123'}}, {'my_id': '123', 'foo': 'bar'})],
                          create_es_actions('baz', [{'my_id': '123', 'foo': 'bar'}], TranslationMap({'my_id': {'name': '_id'}})))
 
     def test_create_es_action_without_id_field_in_translation_map(self):
-        self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "123"}}\n{"id": "123", "foo": "bar"}',
+        self.assertEqual([({'index': {'_index': 'baz', '_type': 'doc', '_id': '123'}}, {'id': '123', 'foo': 'bar'})],
                          create_es_actions('baz', [{'id': '123', 'foo': 'bar'}], TranslationMap()))
 
     def test_create_es_action_with_routing_field_in_translation_map(self):
-        self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "321", "_routing": "456"}}\n{"id": "321", "root_id": "456"}',
+        self.assertEqual([({'index': {'_index': 'baz', '_type': 'doc', '_id': '321', '_routing': '456'}}, {'id': '321', 'root_id': '456'})],
                          create_es_actions('baz', [{'id': '321', 'root_id': '456'}], TranslationMap({'root_id': {'routing_field': True}})))
 
     def test_create_es_action_with_routing_field_false(self):
-        self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "808"}}\n{"id": "808", "root_id": "654"}',
+        self.assertEqual([({'index': {'_index': 'baz', '_type': 'doc', '_id': '808'}}, {'id': '808', 'root_id': '654'})],
                          create_es_actions('baz', [{'id': '808', 'root_id': '654'}], TranslationMap({'root_id': {'routing_field': False}})))
 
     def test_create_es_action_with_nonexistent_routing_field(self):
-        self.assertEqual('{"index": {"_index": "baz", "_type": "doc", "_id": "808"}}\n{"id": "808"}',
+        self.assertEqual([({'index': {'_index': 'baz', '_type': 'doc', '_id': '808'}}, {'id': '808'})],
                          create_es_actions('baz', [{'id': '808'}], TranslationMap({'root_id': {'routing_field': True}})))
+
+    def test_create_es_action_with_multiple_paths(self):
+        self.assertEqual([({'index': {'_index': 'baz', '_type': 'doc', '_id': '808'}}, {'id': '808', 'my_field': 'value_01'})],
+                         create_es_actions('baz', [{'id': '808', 'my_field': ['value_01', 'value_02']}], TranslationMap({'my_field': {'multivalued': False}})))
 
     @raises(IllegalStateError)
     def test_create_es_action_with_more_than_one_routing_field_in_translation_map(self):
