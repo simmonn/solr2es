@@ -177,39 +177,39 @@ class Solr2EsAsync(object):
 
 
 def create_es_actions(index_name, solr_results, translation_map) -> list:
-    routing_key = translation_map.routing_key_field_name
-    multivalued_ignored_fields = translation_map.multivalued_ignored
 
-    def create_action(row) -> dict:
-        index_params = {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': row[translation_map.get_id_field_name()]}
+    def create_action(row, translation_map, id_value=None) -> dict:
+        id_value = row[translation_map.get_id_field_name()] if id_value is None else id_value
+        index_params = {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': id_value}
+        routing_key = translation_map.routing_key_field_name
         if routing_key is not None and routing_key in row:
             index_params['_routing'] = row[routing_key]
         return {'index': index_params}
 
-    def has_duplicates(results) -> bool:
+    def has_duplicates(results, translation_map) -> bool:
         for result in results:
-            for field in multivalued_ignored_fields:
+            for field in translation_map.multivalued_ignored:
                 if type(result[field]) is list:
                     return True
         return False
 
-    def create_duplicate_actions(index_name, row) -> list:
+    def create_duplicate_actions(row, translation_map) -> list:
         actions = []
-        for field in multivalued_ignored_fields:
+        for field in translation_map.multivalued_ignored:
             translated_key = _translate_key(field, translation_map.names, translation_map.regexps)
             for value in row[field][1:]:
                 actions.append((
-                    {'index': {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': hashlib.sha256(str(value).encode('utf-8')).hexdigest()}},
+                    create_action(row, translation_map, hashlib.sha256(str(value).encode('utf-8')).hexdigest()),
                     {translated_key: value, 'documentId': row[translation_map.get_id_field_name()], 'type': 'Duplicate'}
                 ))
         return actions
 
-    results = [(create_action(row),
+    results = [(create_action(row, translation_map),
                 translate_doc(row, translation_map))
                 for row in solr_results]
-    if has_duplicates(solr_results):
+    if has_duplicates(solr_results, translation_map):
         for row in solr_results:
-            results += create_duplicate_actions(index_name, row)
+            results += create_duplicate_actions(row, translation_map)
     return results
 
 
