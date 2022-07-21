@@ -18,7 +18,7 @@ logging.basicConfig(format='%(asctime)s [%(name)s][%(process)d] %(levelname)s: %
 LOGGER = logging.getLogger('solr2es')
 LOGGER.setLevel(logging.INFO)
 
-DEFAULT_ES_DOC_TYPE = 'doc'
+DEFAULT_ES_DOC_TYPE = '_doc'
 DEFAULT_ID_FIELD = 'id'
 
 
@@ -272,7 +272,7 @@ def deep_update(d, u):
 
 def migrate(solrhost, eshost, index_name, solrfq, solrid, solrfields, rows):
     LOGGER.info('migrate from solr (%s) into elasticsearch (%s) index %s and filter query (%s)', solrhost, eshost, index_name, solrfq)
-    Solr2Es(Solr(solrhost, always_commit=True), Elasticsearch(host=eshost)).migrate(index_name, solr_filter_query=solrfq, sort_field=solrid, solr_rows=rows, solr_fields=solrfields)
+    Solr2Es(Solr(solrhost, always_commit=True), Elasticsearch(hosts=eshost)).migrate(index_name, solr_filter_query=solrfq, sort_field=solrid, solr_rows=rows, solr_fields=solrfields)
 
 async def aiomigrate(solrhost, eshost, name, solrfq, solrid, solrfields, rows):
     LOGGER.info('asyncio migrate from solr (%s) into elasticsearch (%s) index %s '

@@ -18,7 +18,7 @@ NAME = 'solr2es'
 install_requires = [
     'idna==2.7', # to avoid conflicts between v2.8 and pysolr
     'pysolr==3.8.1',
-    'elasticsearch==7.17.5',
+    'elasticsearch==7.17.3',
     'elasticsearch-async==6.2.0',
     'aiohttp==3.6.2',
 ]
