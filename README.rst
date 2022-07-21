@@ -14,21 +14,13 @@ CLI
 Here are the option to use as a command line :
 
 * -m | --migrate : to migrate from a solr index to an elasticsearch index
-* -r | --resume : to resume from a given queue to an elasticsearch index. By default, the queue will be redis. If the parameter "postgresqldsn" is set, the queue will be postgresql.
-* -d | --dump : to dump from a solr index into a queue. By default, the queue will be redis.  If the parameter "postgresqldsn" is set, the queue will be postgresql.
 * -t | --test : to test the solr and elasticsearch connections
 * -a | --async : to use python 3 asyncio
 * --solrhost : to set solr host (by default: 'solr')
 * --solrfq: to set solr filter query (by default: '*')
-* --solrid: to set solr id field name (by default: 'id')
 * --core: to set solr core name (by default: 'solr2es')
 * --index: to set index name for solr and elasticsearch (by default: solr core name, see --core parameter)
-* --redishost: to set redis host (by default: 'redis')
-* --postgresqldsn: to set postgresql Data Source Name (by default: None, by example: 'dbname=solr2es user=test password=test host=postgresql')
 * --eshost: to set elasticsearch host (by default: 'elasticsearch')
-* --translationmap: dict string or file path (starting with @) to translate fields from queue into elasticsearch (by default: None, by example: '{"postgresql_field": {"name": "es_field"}}')
-* --esmapping: dict string or file path (starting with @) to set elasticsearch mapping (by default: None)
-* --essetting: dict string or file path (starting with @) to set elasticsearch setting (by default: None)
 
 
 .. image:: examples/solr2es_process.png
