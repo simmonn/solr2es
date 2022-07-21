@@ -5,20 +5,14 @@ import logging
 import re
 import sys
 from collections import Mapping
-from functools import partial, reduce
+from functools import reduce
 from itertools import chain
 from json import loads, dumps
-
 import aiohttp
-import asyncio_redis
-import redis
-from aiopg.sa import create_engine
 from elasticsearch import Elasticsearch
-from elasticsearch_async import AsyncElasticsearch, AsyncTransport
+from elasticsearch_async import AsyncElasticsearch
 from pysolr import Solr, SolrCoreAdmin
 
-from solr2es.postgresql_queue import PostgresqlQueueAsync, PostgresqlQueue
-from solr2es.redis_queue import RedisQueueAsync, RedisQueue
 
 logging.basicConfig(format='%(asctime)s [%(name)s][%(process)d] %(levelname)s: %(message)s')
 LOGGER = logging.getLogger('solr2es')
@@ -60,12 +54,12 @@ class Solr2Es(object):
         self.refresh = refresh
 
     def migrate(self, index_name, mapping=None, translation_map=TranslationMap(), solr_filter_query='*',
-                sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10) -> int:
+                sort_field=DEFAULT_ID_FIELD, solr_rows=500, solr_fields='*') -> int:
         nb_results = 0
         if not self.es.indices.exists([index_name]):
             self.es.indices.create(index_name, body=mapping)
         for results in self.produce_results(solr_filter_query=solr_filter_query,
-                                            sort_field=sort_field, solr_rows_pagination=solr_rows_pagination):
+                                            sort_field=sort_field, solr_rows_pagination=solr_rows, solr_field_list = solr_fields):
             actions_as_list = create_es_actions(index_name, results, translation_map)
             actions = '\n'.join(list(map(lambda d: dumps(d), chain(*actions_as_list))))
             response = self.es.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
@@ -77,11 +71,11 @@ class Solr2Es(object):
         LOGGER.info('processed %s documents', nb_results)
         return nb_results
 
-    def produce_results(self, solr_filter_query='*', sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10):
+    def produce_results(self, solr_filter_query='*', sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10, solr_field_list = '*'):
         nb_results = 0
         nb_total = 0
         cursor_ended = False
-        kwargs = dict(fq=solr_filter_query, cursorMark='*', fl='*', sort='%s asc' % sort_field, rows=solr_rows_pagination)
+        kwargs = dict(fq=solr_filter_query, cursorMark='*', fl=solr_field_list, sort='%s asc' % sort_field, rows=solr_rows_pagination)
         while not cursor_ended:
             results = self.solr.search('*:*', **kwargs)
             if kwargs['cursorMark'] == '*':
@@ -105,13 +99,15 @@ class Solr2EsAsync(object):
         self.aes = aes
         self.refresh = refresh
 
-    async def migrate(self, index_name, es_index_body_str=None, translation_map=TranslationMap(), solr_filter_query='*', sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10) -> int:
+    async def migrate(self, index_name, es_index_body_str=None, translation_map=TranslationMap(), solr_filter_query=None, sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10, solr_fields='*') -> int:
         if not await self.aes.indices.exists([index_name]):
             await self.aes.indices.create(index_name, body=es_index_body_str)
 
         nb_results = 0
         async for results in self.produce_results(solr_filter_query=solr_filter_query,
-                                                  sort_field=sort_field, solr_rows_pagination=solr_rows_pagination):
+                                                  sort_field=sort_field,
+                                                  solr_rows_pagination=solr_rows_pagination,
+                                                  solr_field_list=solr_fields):
             actions_as_list = create_es_actions(index_name, results, translation_map)
             actions = '\n'.join(list(map(lambda d: dumps(d), chain(*actions_as_list))))
             response = await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
@@ -122,12 +118,12 @@ class Solr2EsAsync(object):
                 nb_results -= len(response['items'])
         return nb_results
 
-    async def produce_results(self, solr_filter_query='*', sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10):
+    async def produce_results(self, solr_filter_query='*', sort_field=DEFAULT_ID_FIELD, solr_rows_pagination=10, solr_field_list='*'):
         cursor_ended = False
         nb_results = 0
         nb_total = 0
         kwargs = dict(cursorMark='*', sort='%s asc' % sort_field, q='*:*', wt='json',
-                      fq=solr_filter_query, fl='*', rows=solr_rows_pagination)
+                      fq=solr_filter_query, fl=solr_field_list, rows=solr_rows_pagination)
         while not cursor_ended:
             async with self.aiohttp_session.get(self.solr_url + '/select/', params=kwargs) as resp:
                 json = loads(await resp.text())
@@ -179,8 +175,8 @@ class Solr2EsAsync(object):
 def create_es_actions(index_name, solr_results, translation_map) -> list:
 
     def create_action(row, translation_map, id_value=None) -> dict:
-        id_value = row[translation_map.get_id_field_name()] if id_value is None else id_value
-        index_params = {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE, '_id': id_value}
+        # id_value = row[translation_map.get_id_field_name()] if id_value is None else id_value
+        index_params = {'_index': index_name, '_type': DEFAULT_ES_DOC_TYPE}
         routing_key = translation_map.routing_key_field_name
         if routing_key is not None and routing_key in row:
             index_params['_routing'] = row[routing_key]
@@ -274,90 +270,30 @@ def deep_update(d, u):
     return d
 
 
-def dump_into_redis(solrhost, redishost, solrfq, solrid):
-    LOGGER.info('dump from solr (%s) into redis (host=%s) with filter query (%s)', solrhost, redishost, solrfq)
-    RedisQueue(redis.Redis(host=redishost)).push_loop(partial(Solr2Es(Solr(solrhost, always_commit=True), None).produce_results,
-                                                              solr_filter_query=solrfq, sort_field=solrid))
-
-
-def dump_into_pgsql(solrhost, pgsqldsn, solrfq, solrid):
-    LOGGER.info('dump from solr (%s) into postgresql (dsn=%s) with filter query (%s)', solrhost, pgsqldsn, solrfq)
-    PostgresqlQueue(None).push_loop(partial(Solr2Es(Solr(solrhost, always_commit=True), None).produce_results,
-                                                         solr_filter_query=solrfq, sort_field=solrid))
-
-
-def resume_from_redis(redishost, eshost, name):
-    LOGGER.info('resume from redis (host=%s) to elasticsearch (%s) index %s', redishost, eshost, name)
-
-
-def resume_from_postgresql(pgsqldsn, eshost, name, translationmap, esmapping):
-    LOGGER.info('resume from postgresql (dsn=%s) to elasticsearch (%s) index %s', pgsqldsn, eshost, name)
-
-
-def migrate(solrhost, eshost, index_name, solrfq, solrid):
+def migrate(solrhost, eshost, index_name, solrfq, solrid, solrfields, rows):
     LOGGER.info('migrate from solr (%s) into elasticsearch (%s) index %s and filter query (%s)', solrhost, eshost, index_name, solrfq)
-    Solr2Es(Solr(solrhost, always_commit=True), Elasticsearch(host=eshost)).migrate(index_name, solr_filter_query=solrfq, sort_field=solrid)
+    Solr2Es(Solr(solrhost, always_commit=True), Elasticsearch(host=eshost)).migrate(index_name, solr_filter_query=solrfq, sort_field=solrid, solr_rows=rows, solr_fields=solrfields)
 
-
-async def aiodump_into_redis(solrhost, redishost, solrfq, solrid):
-    LOGGER.info('asyncio dump from solr (%s) into redis (host=%s) with filter query (%s)', solrhost, redishost, solrfq)
-    async with aiohttp.ClientSession() as session:
-        await RedisQueueAsync(await asyncio_redis.Pool.create(host=redishost, port=6379, poolsize=10)).\
-            push_loop(partial(Solr2EsAsync(session, None, solrhost).produce_results, solr_filter_query=solrfq, sort_field=solrid))
-
-
-async def aiodump_into_pgsql(solrhost, pgsqldsn, solrfq, solrid):
-    LOGGER.info('asyncio dump from solr (%s) into postgresql (dsn=%s) with filter query (%s)', solrhost, pgsqldsn, solrfq)
-    dsndict = dict((kvstr.split('=') for kvstr in pgsqldsn.split()))
-    psql_queue = await PostgresqlQueueAsync.create(await create_engine(**dsndict), unique_id=solrid)
-    async with aiohttp.ClientSession() as session:
-        await psql_queue.push_loop(
-            partial(Solr2EsAsync(session, None, solrhost).produce_results, solr_filter_query=solrfq, sort_field=solrid))
-
-
-async def aioresume_from_redis(redishost, eshost, name):
-    LOGGER.info('asyncio resume from redis (host=%s) to elasticsearch (%s) index %s', redishost, eshost, name)
-
-
-async def aioresume_from_pgsql(pgsqldsn, eshost, name, translationmap, es_index_body):
-    LOGGER.info('asyncio resume from postgresql (dsn=%s) to elasticsearch (%s) index %s', pgsqldsn, eshost, name)
-    dsndict = dict((kvstr.split('=') for kvstr in pgsqldsn.split()))
-    psql_queue = await PostgresqlQueueAsync.create(await create_engine(**dsndict))
-    es_index_body_str = None if es_index_body is None else dumps(es_index_body)
-
-    elasticsearch = AsyncElasticsearch([eshost], AsyncTransport, timeout=60)
-    await Solr2EsAsync(None, elasticsearch, None).resume(psql_queue, name, es_index_body_str, translationmap)
-    await psql_queue.close()
-    await elasticsearch.transport.close()
-
-
-async def aiomigrate(solrhost, eshost, name, solrfq, solrid):
+async def aiomigrate(solrhost, eshost, name, solrfq, solrid, solrfields, rows):
     LOGGER.info('asyncio migrate from solr (%s) into elasticsearch (%s) index %s '
                 'with filter query (%s) and with id (%s)', solrhost, eshost, name, solrfq, solrid)
     async with aiohttp.ClientSession() as session:
         await Solr2EsAsync(session, AsyncElasticsearch(hosts=[eshost]), solrhost).migrate(
-            name, solr_filter_query=solrfq, sort_field=solrid)
+            name, solr_filter_query=solrfq, sort_field=solrid, solr_fields=solrfields, solr_rows_pagination=rows)
 
 
 def usage(argv):
     print('Usage: %s action' % argv[0])
     print('\t-m|--migrate: migrate solr to elasticsearch')
-    print('\t-r|--resume: resume from redis (default) or postgresql (if dsn given)')
-    print('\t-d|--dump: dump into redis (default) or postgresql (if dsn given) queue')
     print('\t-t|--test: test solr/elasticsearch connections')
     print('\t-a|--async: use python 3 asyncio')
     print('\t--solrhost: solr host (default \'solr\')')
     print('\t--solrfq: solr filter query (default \'*\')')
     print('\t--solrid: solr id field name (default \'id\')')
+    print('\t--solrfields: solr fields (default \'*\')')
     print('\t--index: index name (default solr core name)')
     print('\t--core: core name (default \'solr2es\')')
     print('\t--eshost: elasticsearch url (default \'elasticsearch\')')
-    print('\t--redishost: redis host (default \'redis\')')
-    print('\t--postgresqldsn: postgresql Data Source Name')
-    print('\t  (ex \'dbname=solr2es user=test password=test host=postgresql\' default None)')
-    print('\t--translationmap: dict string to translate fields or file path beginning with @')
-    print('\t--esmapping: elasticsearch mapping string or file path beginning with @')
-    print('\t--essetting: elasticsearch setting string or file path beginning with @')
 
 
 def as_translation_map(dct):
@@ -377,20 +313,11 @@ def _get_dict_from_string_or_file(input_str) -> dict:
         return loads(input_str, object_hook=as_translation_map)
 
 
-def _get_es_mappings_and_settings(essettings_dict, esmapping_dict) -> dict:
-    return_dict = dict()
-    if essettings_dict is not None:
-        return_dict['settings'] = essettings_dict
-    if esmapping_dict is not None:
-        return_dict['mappings'] = esmapping_dict
-    return return_dict
-
-
 def main():
     options, remainder = getopt.gnu_getopt(sys.argv[1:], 'hmdtra',
-            ['help', 'migrate', 'dump', 'test', 'resume', 'async', 'solrhost=', 'eshost=',
-             'redishost=', 'index=', 'core=', 'solrfq=', 'solrid=', 'postgresqldsn=', 'translationmap=',
-             'esmapping=', 'essetting='])
+            ['help', 'migrate', 'test', 'async', 'solrhost=', 'eshost=',
+             'index=', 'core=', 'solrfq=', 'solrid=',
+             'rows=', 'solrfields='])
     if len(sys.argv) == 1:
         usage(sys.argv)
         sys.exit()
@@ -401,14 +328,11 @@ def main():
     solrfq = '*'
     solrid = DEFAULT_ID_FIELD
     eshost = 'elasticsearch'
-    redishost = 'redis'
-    postgresqldsn = None
     core_name = 'solr2es'
     index_name = None
+    solr_fields= '*'
     action = 'migrate'
-    translationmap = None
-    esmapping = None
-    essetting = None
+    rows = 500
     for opt, arg in options:
         if opt in ('-h', '--help'):
             usage(sys.argv)
@@ -426,11 +350,11 @@ def main():
         if opt == '--solrid':
             solrid = arg
 
-        if opt == '--redishost':
-            redishost = arg
+        if opt == '--solrfields':
+            solr_fields = arg
 
-        if opt == '--postgresqldsn':
-            postgresqldsn = arg
+        if opt == '--rows':
+            rows = arg
 
         if opt == '--eshost':
             eshost = arg
@@ -441,19 +365,6 @@ def main():
         if opt == '--core':
             core_name = arg
 
-        if opt == '--translationmap':
-            translationmap = TranslationMap(_get_dict_from_string_or_file(arg))
-
-        if opt == '--esmapping':
-            esmapping = _get_dict_from_string_or_file(arg)
-
-        if opt == '--essetting':
-            essetting = _get_dict_from_string_or_file(arg)
-
-        if opt in ('-d', '--dump'):
-            action = 'dump' if postgresqldsn is None else 'dump_pgsql'
-        elif opt in ('-r', '--resume'):
-            action = 'resume' if postgresqldsn is None else 'resume_pgsql'
         elif opt in ('-m', '--migrate'):
             action = 'migrate'
         elif opt in ('-t', '--test'):
@@ -462,24 +373,12 @@ def main():
     if index_name is None:
         index_name = core_name
 
-    solrurl = 'http://%s:8983/solr/%s' % (solrhost, core_name)
-    es_index_body = _get_es_mappings_and_settings(essetting, esmapping)
+    solrurl = 'http://%s/solr/%s' % (solrhost, core_name)
 
     if action == 'migrate':
-        aioloop.run_until_complete(aiomigrate(solrurl, eshost, index_name, solrfq, solrid)) if with_asyncio \
-            else migrate(solrurl, eshost, index_name, solrfq, solrid)
-    elif action == 'dump':
-        aioloop.run_until_complete(aiodump_into_redis(solrurl, redishost, solrfq, solrid)) if with_asyncio \
-            else dump_into_redis(solrurl, redishost, solrfq, solrid)
-    elif action == 'resume':
-        aioloop.run_until_complete(aioresume_from_redis(redishost, eshost, index_name)) if with_asyncio else resume_from_redis(redishost, eshost, index_name)
-    elif action == 'dump_pgsql':
-        aioloop.run_until_complete(aiodump_into_pgsql(solrurl, postgresqldsn, solrfq, solrid)) if with_asyncio \
-            else dump_into_pgsql(solrurl, postgresqldsn, solrfq, solrid)
-    elif action == 'resume_pgsql':
-        aioloop.run_until_complete(
-            aioresume_from_pgsql(postgresqldsn, eshost, index_name, translationmap, es_index_body)) if with_asyncio \
-            else resume_from_postgresql(postgresqldsn, eshost, index_name, translationmap, es_index_body)
+        aioloop.run_until_complete(aiomigrate(solrurl, eshost, index_name, solrfq, solrid, solr_fields, rows)) if with_asyncio \
+            else migrate(solrurl, eshost, index_name, solrfq, solrid, solr_fields, rows)
+
     elif action == 'test':
         solr_status = loads(SolrCoreAdmin('http://%s:8983/solr/admin/cores?action=STATUS&core=%s' % (solrhost, core_name)).status())
         LOGGER.info('Elasticsearch ping on %s is %s', eshost, 'OK' if Elasticsearch(host=eshost).ping() else 'KO')
