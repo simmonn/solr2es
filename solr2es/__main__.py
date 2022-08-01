@@ -141,37 +141,6 @@ class Solr2EsAsync(object):
                     cursor_ended = True
         LOGGER.info('processed %s documents', nb_results)
 
-    async def resume(self, queue, index_name, es_index_body_str=None, translation_map=TranslationMap()) -> int:
-        if not await self.aes.indices.exists([index_name]):
-            await self.aes.indices.create(index_name, body=es_index_body_str)
-
-        nb_results = 0
-        nb_total = await queue.size()
-        LOGGER.info('found %s documents', nb_total)
-
-        results = ['']
-        while results:
-            try:
-                results = await queue.pop()
-                if results == []:
-                    break
-                actions_as_list = create_es_actions(index_name, results, translation_map)
-                actions = '\n'.join(list(map(lambda d: dumps(d), chain(*actions_as_list))))
-                response = await self.aes.bulk(actions, index_name, DEFAULT_ES_DOC_TYPE, refresh=self.refresh)
-                nb_results += len(results)
-                if response['errors']:
-                    for err in response['items']:
-                        LOGGER.warning(err)
-                    nb_results -= len(response['items'])
-                if nb_results % 10000 == 0:
-                    LOGGER.info('read %s docs of %s (%.2f %% done)', nb_results, nb_total,
-                                (100 * nb_results) / nb_total)
-            except Exception:
-                LOGGER.exception('exception while reading results %s' % list(
-                    r.get(translation_map.get_id_field_name()) for r in results))
-        return nb_results
-
-
 def create_es_actions(index_name, solr_results, translation_map) -> list:
 
     def create_action(row, translation_map, id_value=None) -> dict:
